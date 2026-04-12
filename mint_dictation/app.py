@@ -198,6 +198,7 @@ def main():
     parser.add_argument("--start", action="store_true", help="Start dictation")
     parser.add_argument("--stop", action="store_true", help="Stop dictation")
     parser.add_argument("--status", action="store_true", help="Print dictation status")
+    parser.add_argument("--settings", action="store_true", help="Open the settings window")
     parser.add_argument("--quit", action="store_true", help="Quit the running daemon")
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
@@ -210,14 +211,14 @@ def main():
     )
 
     # If sending a command to an existing daemon
-    if args.toggle or args.start or args.stop or args.status or args.quit:
+    if args.toggle or args.start or args.stop or args.status or args.quit or args.settings:
         if not is_daemon_running():
             if args.status:
                 print("not running")
                 return
             if args.quit:
                 return  # nothing to quit
-            if args.toggle or args.start:
+            if args.toggle or args.start or args.settings:
                 # Auto-start the daemon, then send the command
                 import subprocess as _sp
                 import time as _time
@@ -253,6 +254,8 @@ def main():
             return
         elif args.quit:
             resp = send_ipc_command("quit")
+        elif args.settings:
+            resp = send_ipc_command("settings")
 
         if resp != "ok" and not args.status:
             print(f"Command failed: {resp}", file=sys.stderr)

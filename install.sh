@@ -120,6 +120,24 @@ X-GNOME-Autostart-enabled=true
 EOF
 info "Autostart entry created"
 
+# ── 7b. Application menu entry ──────────────────────────────────────
+APPS_DIR="$HOME/.local/share/applications"
+mkdir -p "$APPS_DIR"
+cat > "$APPS_DIR/mint-dictation.desktop" << EOF
+[Desktop Entry]
+Type=Application
+Name=Mint Dictation
+Comment=Voice dictation with system tray and overlay
+Exec=$LAUNCHER
+Icon=$SCRIPT_DIR/assets/icons/mic-ready.svg
+Categories=Utility;Accessibility;
+Keywords=voice;dictation;speech;microphone;
+Terminal=false
+StartupNotify=false
+EOF
+update-desktop-database "$APPS_DIR" 2>/dev/null || true
+info "Application menu entry installed"
+
 # ── 8. Create default config ────────────────────────────────────────
 CONFIG_DIR="$HOME/.config/mint-dictation"
 CONFIG_FILE="$CONFIG_DIR/config.ini"
