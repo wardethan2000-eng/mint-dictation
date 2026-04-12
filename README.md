@@ -28,7 +28,7 @@ Built on [nerd-dictation](https://github.com/ideasman42/nerd-dictation) + [VOSK]
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/mint-dictation.git ~/mint-dictation
+git clone https://github.com/wardethan2000-eng/mint-dictation.git ~/mint-dictation
 cd ~/mint-dictation
 chmod +x install.sh
 ./install.sh
@@ -236,7 +236,7 @@ sudo apt install gir1.2-appindicator3-0.1
 ## Development
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/mint-dictation.git
+git clone https://github.com/wardethan2000-eng/mint-dictation.git
 cd mint-dictation
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
