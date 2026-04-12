@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Mint Dictation
+Comment=Voice dictation with system tray and overlay
+Exec=mint-dictation
+Icon=microphone-sensitivity-high-symbolic
+Terminal=false
+StartupNotify=false
+Categories=Utility;Accessibility;
+Keywords=voice;dictation;speech;microphone;

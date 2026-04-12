@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mint-dictation"
+version = "0.1.0"
+description = "Voice dictation tool for Linux Mint with GTK overlay and system tray"
+requires-python = ">=3.8"
+license = {text = "GPL-3.0"}
+dependencies = [
+    "vosk",
+    "sounddevice",
+    "numpy",
+    "pycairo",
+    "PyGObject",
+]
+
+[project.scripts]
+mint-dictation = "mint_dictation.app:main"
+
+[tool.setuptools.packages.find]
+include = ["mint_dictation*"]
