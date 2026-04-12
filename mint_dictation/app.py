@@ -17,6 +17,7 @@ from .audio_monitor import AudioMonitor
 from .config import Config
 from .dictation import DictationManager
 from .overlay import DictationOverlay
+from .settings import SettingsWindow
 from .tray import TrayIcon
 
 log = logging.getLogger(__name__)
@@ -31,9 +32,11 @@ class MintDictationApp:
         self._dictation = DictationManager(self._config)
         self._audio_monitor = AudioMonitor(on_level=self._on_audio_level)
         self._overlay = DictationOverlay(on_stop_clicked=self.toggle_dictation)
+        self._settings = SettingsWindow(self._config)
         self._tray = TrayIcon(
             self._config,
             on_toggle=self.toggle_dictation,
+            on_settings=self._show_settings,
             on_quit=self.quit,
         )
         self._ipc_server = None
@@ -115,10 +118,16 @@ class MintDictationApp:
             return "ok"
         elif command == "status":
             return "active" if self._dictation.is_running else "ready"
+        elif command == "settings":
+            GLib.idle_add(self._show_settings)
+            return "ok"
         elif command == "quit":
             GLib.idle_add(self.quit)
             return "ok"
         return "unknown command"
+
+    def _show_settings(self):
+        self._settings.show()
 
     def _cleanup_ipc(self):
         if self._ipc_server:
@@ -206,8 +215,31 @@ def main():
             if args.status:
                 print("not running")
                 return
-            print("Mint Dictation is not running. Launch it first with: mint-dictation")
-            sys.exit(1)
+            if args.quit:
+                return  # nothing to quit
+            if args.toggle or args.start:
+                # Auto-start the daemon, then send the command
+                import subprocess as _sp
+                import time as _time
+                _sp.Popen(
+                    [sys.executable, "-m", "mint_dictation.app"],
+                    stdout=_sp.DEVNULL,
+                    stderr=_sp.DEVNULL,
+                    start_new_session=True,
+                )
+                # Wait up to 5 s for the IPC socket to appear
+                deadline = _time.time() + 5.0
+                while _time.time() < deadline:
+                    if SOCKET_PATH.exists():
+                        break
+                    _time.sleep(0.1)
+                else:
+                    print("Daemon failed to start", file=sys.stderr)
+                    sys.exit(1)
+                _time.sleep(0.05)  # brief grace period
+            else:
+                print("Mint Dictation is not running.", file=sys.stderr)
+                sys.exit(1)
 
         if args.toggle:
             resp = send_ipc_command("toggle")
@@ -223,7 +255,7 @@ def main():
             resp = send_ipc_command("quit")
 
         if resp != "ok" and not args.status:
-            print(f"Command failed: {resp}")
+            print(f"Command failed: {resp}", file=sys.stderr)
             sys.exit(1)
         return
 

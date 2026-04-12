@@ -23,9 +23,10 @@ log = logging.getLogger(__name__)
 class TrayIcon:
     """System tray icon using AppIndicator3 (native to Cinnamon)."""
 
-    def __init__(self, config: Config, on_toggle=None, on_quit=None):
+    def __init__(self, config: Config, on_toggle=None, on_settings=None, on_quit=None):
         self._config = config
         self._on_toggle = on_toggle
+        self._on_settings = on_settings
         self._on_quit = on_quit
         self._indicator = None
         self._status_item = None
@@ -50,6 +51,10 @@ class TrayIcon:
         self._status_item = Gtk.MenuItem(label="Start Dictation")
         self._status_item.connect("activate", self._on_toggle_clicked)
         menu.append(self._status_item)
+
+        settings_item = Gtk.MenuItem(label="Settings…")
+        settings_item.connect("activate", self._on_settings_clicked)
+        menu.append(settings_item)
 
         menu.append(Gtk.SeparatorMenuItem())
 
@@ -85,6 +90,10 @@ class TrayIcon:
     def _on_toggle_clicked(self, widget):
         if self._on_toggle:
             self._on_toggle()
+
+    def _on_settings_clicked(self, widget):
+        if self._on_settings:
+            self._on_settings()
 
     def _on_quit_clicked(self, widget):
         if self._on_quit:
