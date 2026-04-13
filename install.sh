@@ -61,7 +61,7 @@ python3 -m venv --system-site-packages "$VENV_DIR"
 source "$VENV_DIR/bin/activate"
 
 pip install --quiet --upgrade pip
-pip install --quiet vosk sounddevice numpy pycairo PyGObject
+pip install --quiet vosk sounddevice numpy pycairo PyGObject pynput
 
 # ── 3. Clone nerd-dictation ─────────────────────────────────────────
 if [ -d "$NERD_DICT_DIR" ]; then

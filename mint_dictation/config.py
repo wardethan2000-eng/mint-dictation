@@ -15,6 +15,7 @@ _DEFAULTS = {
     "overlay_position": "top-center",
     "sample_rate": "44100",
     "input_device": "",
+    "ptt_key": "",
 }
 
 _CONFIG_DIR = Path.home() / ".config" / "mint-dictation"

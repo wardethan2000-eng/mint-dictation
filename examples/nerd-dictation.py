@@ -25,6 +25,25 @@ def _send_stop_command():
     except Exception:
         pass
 
+
+# ---------------------------------------------------------------------------
+# Transcript log — appends processed text to a timestamped log file
+# ---------------------------------------------------------------------------
+
+_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "mint-dictation" / "transcript.log"
+
+
+def _append_transcript(text: str):
+    try:
+        from datetime import datetime
+        _TRANSCRIPT_LOG.parent.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with open(_TRANSCRIPT_LOG, "a", encoding="utf-8") as f:
+            f.write(f"[{timestamp}] {text}\n")
+    except Exception:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # Punctuation — say the word to insert the punctuation
 # ---------------------------------------------------------------------------
@@ -318,4 +337,6 @@ def nerd_dictation_process(text):
         result,
     )
 
+    if result:
+        _append_transcript(result)
     return result

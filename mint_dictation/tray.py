@@ -1,5 +1,7 @@
 import logging
 import os
+import subprocess
+from pathlib import Path
 
 import gi
 
@@ -19,6 +21,8 @@ from .config import Config
 
 log = logging.getLogger(__name__)
 
+_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "mint-dictation" / "transcript.log"
+
 
 class TrayIcon:
     """System tray icon using AppIndicator3 (native to Cinnamon)."""
@@ -30,6 +34,7 @@ class TrayIcon:
         self._on_quit = on_quit
         self._indicator = None
         self._status_item = None
+        self._info_item = None
 
         if not HAS_APPINDICATOR:
             log.warning(
@@ -48,6 +53,12 @@ class TrayIcon:
 
         menu = Gtk.Menu()
 
+        self._info_item = Gtk.MenuItem(label="○  Ready")
+        self._info_item.set_sensitive(False)
+        menu.append(self._info_item)
+
+        menu.append(Gtk.SeparatorMenuItem())
+
         self._status_item = Gtk.MenuItem(label="Start Dictation")
         self._status_item.connect("activate", self._on_toggle_clicked)
         menu.append(self._status_item)
@@ -55,6 +66,10 @@ class TrayIcon:
         settings_item = Gtk.MenuItem(label="Settings…")
         settings_item.connect("activate", self._on_settings_clicked)
         menu.append(settings_item)
+
+        transcript_item = Gtk.MenuItem(label="View Transcript")
+        transcript_item.connect("activate", self._on_transcript_clicked)
+        menu.append(transcript_item)
 
         menu.append(Gtk.SeparatorMenuItem())
 
@@ -86,6 +101,39 @@ class TrayIcon:
                 self._status_item.set_label("Stop Dictation")
             else:
                 self._status_item.set_label("Start Dictation")
+        self._update_info_item(state)
+
+    def _update_info_item(self, state: str):
+        if self._info_item is None:
+            return
+        icons = {"active": "●", "error": "⚠", "ready": "○"}
+        icon = icons.get(state, "○")
+        summary = self._get_settings_summary()
+        self._info_item.set_label(f"{icon}  {summary}")
+
+    def _get_settings_summary(self) -> str:
+        parts = []
+        ptt_key = self._config.get("ptt_key").strip()
+        if ptt_key:
+            parts.append(f"PTT: {ptt_key}")
+        else:
+            parts.append("toggle")
+        method = (self._config.get("input_method") or "PW-CAT").lower()
+        parts.append(method)
+        timeout = self._config.get("timeout")
+        if timeout and timeout != "0":
+            parts.append(f"{timeout}s timeout")
+        return " · ".join(parts)
+
+    def _on_transcript_clicked(self, widget):
+        try:
+            subprocess.Popen(
+                ["xdg-open", str(_TRANSCRIPT_LOG)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            log.warning("xdg-open not found; transcript is at %s", _TRANSCRIPT_LOG)
 
     def _on_toggle_clicked(self, widget):
         if self._on_toggle:

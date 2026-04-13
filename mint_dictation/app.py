@@ -42,6 +42,7 @@ class MintDictationApp:
         )
         self._ipc_server = None
         self._running = True
+        self._ptt_listener = None
 
     def toggle_dictation(self):
         if self._dictation.is_running:
@@ -99,9 +100,48 @@ class MintDictationApp:
             return False
         return True
 
+    def _start_ptt_listener(self):
+        ptt_key_name = self._config.get("ptt_key").strip().lower()
+        if not ptt_key_name:
+            return
+        try:
+            from pynput import keyboard as kb
+        except ImportError:
+            log.warning("pynput not installed; push-to-talk unavailable. Run: pip install pynput")
+            return
+        try:
+            ptt_key = kb.Key[ptt_key_name]
+        except KeyError:
+            if len(ptt_key_name) == 1:
+                ptt_key = kb.KeyCode.from_char(ptt_key_name)
+            else:
+                log.warning("PTT: unrecognised key %r. Use names like 'f9', 'pause', 'scroll_lock'.", ptt_key_name)
+                return
+
+        def on_press(key):
+            if key == ptt_key and not self._dictation.is_running:
+                GLib.idle_add(self._start_dictation)
+
+        def on_release(key):
+            if key == ptt_key and self._dictation.is_running:
+                GLib.idle_add(self._stop_dictation)
+
+        self._ptt_listener = kb.Listener(on_press=on_press, on_release=on_release, daemon=True)
+        self._ptt_listener.start()
+        log.info("PTT listener started for key: %r", ptt_key_name)
+
+    def _stop_ptt_listener(self):
+        if self._ptt_listener is not None:
+            try:
+                self._ptt_listener.stop()
+            except Exception:
+                pass
+            self._ptt_listener = None
+
     def quit(self):
         log.info("Shutting down")
         self._running = False
+        self._stop_ptt_listener()
         self._dictation.cleanup()
         self._audio_monitor.stop()
         self._overlay.hide()
@@ -181,6 +221,7 @@ class MintDictationApp:
         self._write_pid()
         self._start_ipc_server()
         self._tray.set_state("ready")
+        self._start_ptt_listener()
         log.info("Mint Dictation running (PID %d)", os.getpid())
 
         # Handle SIGTERM/SIGINT gracefully
@@ -231,6 +272,8 @@ def main():
     parser.add_argument("--status", action="store_true", help="Print dictation status")
     parser.add_argument("--settings", action="store_true", help="Open the settings window")
     parser.add_argument("--quit", action="store_true", help="Quit the running daemon")
+    parser.add_argument("--press", action="store_true", help="Start dictation (push-to-talk key down)")
+    parser.add_argument("--release", action="store_true", help="Stop dictation (push-to-talk key up)")
     parser.add_argument(
         "--verbose", "-v", action="store_true", help="Enable verbose logging"
     )
@@ -242,14 +285,14 @@ def main():
     )
 
     # If sending a command to an existing daemon
-    if args.toggle or args.start or args.stop or args.status or args.quit or args.settings:
+    if args.toggle or args.start or args.stop or args.status or args.quit or args.settings or args.press or args.release:
         if not is_daemon_running():
             if args.status:
                 print("not running")
                 return
             if args.quit:
                 return  # nothing to quit
-            if args.toggle or args.start or args.settings:
+            if args.toggle or args.start or args.settings or args.press:
                 # Auto-start the daemon, then send the command
                 import subprocess as _sp
                 import time as _time
@@ -287,6 +330,10 @@ def main():
             resp = send_ipc_command("quit")
         elif args.settings:
             resp = send_ipc_command("settings")
+        elif args.press:
+            resp = send_ipc_command("start")
+        elif args.release:
+            resp = send_ipc_command("stop")
 
         if resp != "ok" and not args.status:
             print(f"Command failed: {resp}", file=sys.stderr)

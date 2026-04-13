@@ -184,6 +184,21 @@ class SettingsWindow:
         timeout_box.pack_start(Gtk.Label(label="seconds  (0 = no auto-stop)"), False, False, 0)
         g.attach(timeout_box, 1, 3, 1, 1)
 
+        # Push-to-talk key
+        g.attach(self._label("Push-to-talk key:"), 0, 4, 1, 1)
+        self._ptt_entry = Gtk.Entry()
+        self._ptt_entry.set_width_chars(12)
+        self._ptt_entry.set_placeholder_text("e.g. f9")
+        self._ptt_entry.set_text(self._config.get("ptt_key"))
+        g.attach(self._ptt_entry, 1, 4, 1, 1)
+        ptt_hint = Gtk.Label(xalign=0)
+        ptt_hint.set_markup(
+            '<small><span foreground="#888">'
+            "Hold to record, release to stop. Leave blank for toggle mode."
+            "</span></small>"
+        )
+        g.attach(ptt_hint, 0, 5, 2, 1)
+
         return g
 
     # ── Hotkey tab ───────────────────────────────────────────────────
@@ -292,6 +307,7 @@ class SettingsWindow:
         self._config.set("full_sentence", str(self._full_sentence_check.get_active()).lower())
         self._config.set("numbers_as_digits", str(self._numbers_check.get_active()).lower())
         self._config.set("timeout", str(int(self._timeout_spin.get_value())))
+        self._config.set("ptt_key", self._ptt_entry.get_text().strip().lower())
         active = self._mic_combo.get_active()
         self._config.set(
             "input_device",
