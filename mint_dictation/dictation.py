@@ -16,10 +16,26 @@ class DictationManager:
         self._config = config
         self._process: Optional[subprocess.Popen] = None
         self._active = False
+        self._last_error: str = ""
 
     @property
     def is_running(self) -> bool:
         return self._active
+
+    @property
+    def last_error(self) -> str:
+        return self._last_error
+
+    def check_alive(self) -> bool:
+        """Returns False if the process has unexpectedly exited."""
+        if self._process is None:
+            return False
+        return self._process.poll() is None
+
+    def reset_after_crash(self):
+        """Mark dictation as not running after an unexpected process exit."""
+        self._active = False
+        self._process = None
 
     def start(self) -> bool:
         if self._active:
@@ -62,12 +78,20 @@ class DictationManager:
         if os.path.exists(venv_python):
             cmd = [venv_python] + cmd
 
+        env = None
+        input_device = self._config.get("input_device")
+        if input_device:
+            env = os.environ.copy()
+            env["PULSE_SOURCE"] = input_device
+
+        self._last_error = ""
         try:
             self._process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 preexec_fn=os.setsid,
+                env=env,
             )
             self._active = True
             return True
@@ -75,9 +99,11 @@ class DictationManager:
             log.error(
                 "nerd-dictation not found at %s", self._config.nerd_dictation_path
             )
+            self._last_error = "nerd-dictation not found. Check the path in Settings."
             return False
-        except Exception:
+        except Exception as exc:
             log.exception("Failed to start dictation")
+            self._last_error = str(exc) or "Failed to start dictation."
             return False
 
     def stop(self) -> bool:

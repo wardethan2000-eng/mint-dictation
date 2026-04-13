@@ -3,6 +3,7 @@ import logging
 import os
 import signal
 import socket
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -53,9 +54,11 @@ class MintDictationApp:
             self._audio_monitor.start()
             self._overlay.show()
             self._tray.set_state("active")
+            self._start_crash_monitor()
             log.info("Dictation started")
         else:
             self._tray.set_state("error")
+            self._notify_error(self._dictation.last_error or "Failed to start dictation.")
             log.error("Failed to start dictation")
 
     def _stop_dictation(self):
@@ -68,6 +71,33 @@ class MintDictationApp:
     def _on_audio_level(self, levels: list[float]):
         # Schedule UI update on the GTK main thread
         GLib.idle_add(self._overlay.update_levels, levels)
+
+    def _notify_error(self, message: str):
+        try:
+            subprocess.Popen(
+                ["notify-send", "-i", "dialog-error", "-t", "5000",
+                 "Mint Dictation", message],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            log.warning("notify-send not available: %s", message)
+
+    def _start_crash_monitor(self):
+        GLib.timeout_add(2000, self._check_dictation_alive)
+
+    def _check_dictation_alive(self) -> bool:
+        if not self._dictation.is_running:
+            return False
+        if not self._dictation.check_alive():
+            log.warning("nerd-dictation process crashed unexpectedly")
+            self._dictation.reset_after_crash()
+            self._audio_monitor.stop()
+            self._overlay.hide()
+            self._tray.set_state("error")
+            self._notify_error("Dictation stopped unexpectedly. Please try again.")
+            return False
+        return True
 
     def quit(self):
         log.info("Shutting down")
@@ -87,6 +117,7 @@ class MintDictationApp:
 
         self._ipc_server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._ipc_server.bind(str(SOCKET_PATH))
+        os.chmod(str(SOCKET_PATH), 0o600)
         self._ipc_server.listen(1)
         self._ipc_server.settimeout(1.0)
 

@@ -4,7 +4,7 @@ import subprocess
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import GLib, Gtk
 
 from .config import Config
 
@@ -41,7 +41,7 @@ class SettingsWindow:
             modal=False,
             destroy_with_parent=False,
         )
-        self._window.set_default_size(460, 380)
+        self._window.set_default_size(460, 460)
         self._window.set_resizable(False)
 
         btn_cancel = self._window.add_button("Cancel", Gtk.ResponseType.CANCEL)
@@ -54,6 +54,15 @@ class SettingsWindow:
         notebook = Gtk.Notebook()
         notebook.set_border_width(8)
         self._window.get_content_area().pack_start(notebook, True, True, 0)
+
+        # Save confirmation info bar
+        self._info_bar = Gtk.InfoBar()
+        self._info_bar.set_message_type(Gtk.MessageType.INFO)
+        self._info_bar.set_no_show_all(True)
+        self._info_bar.get_content_area().add(
+            Gtk.Label(label="Changes take effect on the next recording session.")
+        )
+        self._window.get_content_area().pack_start(self._info_bar, False, False, 0)
 
         notebook.append_page(self._build_audio_tab(),       Gtk.Label(label="  Audio  "))
         notebook.append_page(self._build_recognition_tab(), Gtk.Label(label="  Recognition  "))
@@ -115,6 +124,28 @@ class SettingsWindow:
             '<small><span foreground="#888">Download models at alphacephei.com/vosk/models</span></small>'
         )
         g.attach(model_hint, 1, 4, 1, 1)
+
+        # Microphone device
+        g.attach(self._label("Microphone:"), 0, 5, 1, 1)
+        self._mic_sources = self._get_audio_sources()
+        self._mic_combo = Gtk.ComboBoxText()
+        self._mic_combo.append_text("System default")
+        for _name, desc in self._mic_sources:
+            self._mic_combo.append_text(desc)
+        saved_device = self._config.get("input_device")
+        mic_idx = 0
+        if saved_device:
+            for i, (name, _desc) in enumerate(self._mic_sources):
+                if name == saved_device:
+                    mic_idx = i + 1
+                    break
+        self._mic_combo.set_active(mic_idx)
+        g.attach(self._mic_combo, 1, 5, 1, 1)
+        mic_hint = Gtk.Label(xalign=0)
+        mic_hint.set_markup(
+            '<small><span foreground="#888">Applies when using PipeWire or PulseAudio input</span></small>'
+        )
+        g.attach(mic_hint, 1, 6, 1, 1)
 
         return g
 
@@ -203,6 +234,29 @@ class SettingsWindow:
 
     # ── Callbacks ────────────────────────────────────────────────────
 
+    @staticmethod
+    def _get_audio_sources() -> list[tuple[str, str]]:
+        """Returns list of (device_name, description) for non-monitor input sources."""
+        sources = []
+        try:
+            result = subprocess.run(
+                ["pactl", "list", "sources"],
+                capture_output=True, text=True, timeout=3,
+            )
+            current_name = None
+            for line in result.stdout.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("Name:"):
+                    current_name = stripped.split(":", 1)[1].strip()
+                elif stripped.startswith("Description:") and current_name is not None:
+                    desc = stripped.split(":", 1)[1].strip()
+                    if not current_name.endswith(".monitor"):
+                        sources.append((current_name, desc))
+                    current_name = None
+        except Exception:
+            pass
+        return sources
+
     def _on_browse_model(self, _button):
         dialog = Gtk.FileChooserDialog(
             title="Select VOSK Model Directory",
@@ -238,7 +292,18 @@ class SettingsWindow:
         self._config.set("full_sentence", str(self._full_sentence_check.get_active()).lower())
         self._config.set("numbers_as_digits", str(self._numbers_check.get_active()).lower())
         self._config.set("timeout", str(int(self._timeout_spin.get_value())))
+        active = self._mic_combo.get_active()
+        self._config.set(
+            "input_device",
+            self._mic_sources[active - 1][0] if active > 0 else ""
+        )
         self._config.save()
         log.info("Settings saved")
+        self._info_bar.show_all()
+        GLib.timeout_add(4000, self._hide_info_bar)
         if self._on_settings_changed:
             self._on_settings_changed()
+
+    def _hide_info_bar(self) -> bool:
+        self._info_bar.hide()
+        return False

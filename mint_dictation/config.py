@@ -14,6 +14,7 @@ _DEFAULTS = {
     "full_sentence": "true",
     "overlay_position": "top-center",
     "sample_rate": "44100",
+    "input_device": "",
 }
 
 _CONFIG_DIR = Path.home() / ".config" / "mint-dictation"

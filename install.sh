@@ -160,7 +160,12 @@ fi
 # ── 9. Install example text-processing config ───────────────────────
 ND_CONFIG_DIR="$HOME/.config/nerd-dictation"
 ND_CONFIG_FILE="$ND_CONFIG_DIR/nerd-dictation.py"
-if [ ! -f "$ND_CONFIG_FILE" ] && [ -f "$SCRIPT_DIR/examples/nerd-dictation.py" ]; then
+mkdir -p "$ND_CONFIG_DIR"
+if [ -f "$SCRIPT_DIR/examples/nerd-dictation.py" ]; then
+    if [ -f "$ND_CONFIG_FILE" ]; then
+        cp "$ND_CONFIG_FILE" "${ND_CONFIG_FILE}.bak"
+        info "Backed up existing text processor config to ${ND_CONFIG_FILE}.bak"
+    fi
     cp "$SCRIPT_DIR/examples/nerd-dictation.py" "$ND_CONFIG_FILE"
     info "Text processing config installed to $ND_CONFIG_FILE"
 fi
