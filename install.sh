@@ -141,7 +141,7 @@ info "Application menu entry installed"
 # ── 7c. Install icon into hicolor theme ─────────────────────────────
 ICON_THEME_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 mkdir -p "$ICON_THEME_DIR"
-cp "$SCRIPT_DIR/assets/icons/mic-ready.svg" "$ICON_THEME_DIR/voxtype.svg"
+cp "$SCRIPT_DIR/assets/icons/voxtype.svg" "$ICON_THEME_DIR/voxtype.svg"
 gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 info "Application icon installed to icon theme"
 

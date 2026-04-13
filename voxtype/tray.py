@@ -43,9 +43,10 @@ class TrayIcon:
             return
 
         icon_dir = str(config.icon_dir)
+        self._icon_dir = icon_dir
         self._indicator = AppIndicator3.Indicator.new(
-            "voxtype",
-            os.path.join(icon_dir, "mic-ready"),
+            "voxtype-tray",
+            "vt-ready",
             AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
         )
         self._indicator.set_icon_theme_path(icon_dir)
@@ -85,15 +86,14 @@ class TrayIcon:
         if not self._indicator:
             return
 
-        icon_dir = str(self._config.icon_dir)
         icon_map = {
-            "ready": "mic-ready",
-            "active": "mic-active",
-            "error": "mic-error",
+            "ready": "vt-ready",
+            "active": "vt-active",
+            "error": "vt-error",
         }
-        icon_name = icon_map.get(state, "mic-ready")
+        icon_file = icon_map.get(state, "vt-ready")
         self._indicator.set_icon_full(
-            os.path.join(icon_dir, icon_name), f"Dictation: {state}"
+            icon_file, f"VoxType: {state}"
         )
 
         if self._status_item:
