@@ -73,7 +73,7 @@ class DictationManager:
 
         # Run nerd-dictation through the venv Python so vosk is importable
         venv_python = os.path.expanduser(
-            "~/.local/share/mint-dictation/venv/bin/python"
+            "~/.local/share/voxtype/venv/bin/python"
         )
         if os.path.exists(venv_python):
             cmd = [venv_python] + cmd

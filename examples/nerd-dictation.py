@@ -1,5 +1,5 @@
 # ~/.config/nerd-dictation/nerd-dictation.py
-# Text processing configuration for Mint Dictation
+# Text processing configuration for VoxType
 # Handles: punctuation, capitalization, common names, contractions, tech terms
 
 import re
@@ -12,7 +12,7 @@ from pathlib import Path
 
 STOP_PHRASES = ["stop recording", "stop dictation"]
 
-_IPC_SOCKET = Path.home() / ".cache" / "mint-dictation" / "ipc.sock"
+_IPC_SOCKET = Path.home() / ".cache" / "voxtype" / "ipc.sock"
 
 
 def _send_stop_command():
@@ -30,7 +30,7 @@ def _send_stop_command():
 # Transcript log — appends processed text to a timestamped log file
 # ---------------------------------------------------------------------------
 
-_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "mint-dictation" / "transcript.log"
+_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "voxtype" / "transcript.log"
 
 
 def _append_transcript(text: str):

@@ -5,7 +5,7 @@ from pathlib import Path
 
 _DEFAULTS = {
     "nerd_dictation_path": os.path.expanduser(
-        "~/.local/share/mint-dictation/nerd-dictation/nerd-dictation"
+        "~/.local/share/voxtype/nerd-dictation/nerd-dictation"
     ),
     "vosk_model_dir": os.path.expanduser("~/.config/nerd-dictation/model"),
     "timeout": "0",
@@ -19,7 +19,7 @@ _DEFAULTS = {
     "toggle_hotkey": "",
 }
 
-_CONFIG_DIR = Path.home() / ".config" / "mint-dictation"
+_CONFIG_DIR = Path.home() / ".config" / "voxtype"
 _CONFIG_FILE = _CONFIG_DIR / "config.ini"
 
 
@@ -63,4 +63,4 @@ class Config:
         pkg_dir = Path(__file__).resolve().parent.parent / "assets" / "icons"
         if pkg_dir.exists():
             return pkg_dir
-        return Path("/usr/share/mint-dictation/icons")
+        return Path("/usr/share/voxtype/icons")

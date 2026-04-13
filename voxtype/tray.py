@@ -21,7 +21,7 @@ from .config import Config
 
 log = logging.getLogger(__name__)
 
-_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "mint-dictation" / "transcript.log"
+_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "voxtype" / "transcript.log"
 
 
 class TrayIcon:
@@ -44,7 +44,7 @@ class TrayIcon:
 
         icon_dir = str(config.icon_dir)
         self._indicator = AppIndicator3.Indicator.new(
-            "mint-dictation",
+            "voxtype",
             os.path.join(icon_dir, "mic-ready"),
             AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
         )

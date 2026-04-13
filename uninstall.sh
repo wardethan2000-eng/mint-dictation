@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Mint Dictation Uninstaller ───────────────────────────────────────
-# Removes mint-dictation and all installed files.
+# ── VoxType Uninstaller ───────────────────────────────────────────────
+# Removes VoxType and all installed files.
 # The VOSK model and nerd-dictation text-processing config are kept
 # by default (they may be used by other tools).  Pass --purge to
 # remove everything including configuration data.
@@ -23,26 +23,26 @@ warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
 removed() { echo -e "${RED}[REMOVED]${NC} $*"; }
 
 # ── Stop running daemon ───────────────────────────────────────────────
-if command -v mint-dictation &>/dev/null; then
-    mint-dictation --quit 2>/dev/null && info "Daemon stopped" || true
+if command -v voxtype &>/dev/null; then
+    voxtype --quit 2>/dev/null && info "Daemon stopped" || true
 fi
 
 # ── Launcher ──────────────────────────────────────────────────────────
-LAUNCHER="$HOME/.local/bin/mint-dictation"
+LAUNCHER="$HOME/.local/bin/voxtype"
 if [ -f "$LAUNCHER" ]; then
     rm -f "$LAUNCHER"
     removed "Launcher: $LAUNCHER"
 fi
 
 # ── Autostart entry ───────────────────────────────────────────────────
-AUTOSTART="$HOME/.config/autostart/mint-dictation.desktop"
+AUTOSTART="$HOME/.config/autostart/voxtype.desktop"
 if [ -f "$AUTOSTART" ]; then
     rm -f "$AUTOSTART"
     removed "Autostart entry: $AUTOSTART"
 fi
 
 # ── Application menu entry ────────────────────────────────────────────
-APP_ENTRY="$HOME/.local/share/applications/mint-dictation.desktop"
+APP_ENTRY="$HOME/.local/share/applications/voxtype.desktop"
 if [ -f "$APP_ENTRY" ]; then
     rm -f "$APP_ENTRY"
     update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
@@ -50,14 +50,14 @@ if [ -f "$APP_ENTRY" ]; then
 fi
 
 # ── Python venv + nerd-dictation ──────────────────────────────────────
-INSTALL_DIR="$HOME/.local/share/mint-dictation"
+INSTALL_DIR="$HOME/.local/share/voxtype"
 if [ -d "$INSTALL_DIR" ]; then
     rm -rf "$INSTALL_DIR"
     removed "Install directory: $INSTALL_DIR"
 fi
 
 # ── Cache / runtime files ─────────────────────────────────────────────
-CACHE_DIR="$HOME/.cache/mint-dictation"
+CACHE_DIR="$HOME/.cache/voxtype"
 if [ -d "$CACHE_DIR" ]; then
     rm -rf "$CACHE_DIR"
     removed "Cache: $CACHE_DIR"
@@ -65,7 +65,7 @@ fi
 
 # ── Configuration (only with --purge) ────────────────────────────────
 if $PURGE; then
-    CONFIG_DIR="$HOME/.config/mint-dictation"
+    CONFIG_DIR="$HOME/.config/voxtype"
     if [ -d "$CONFIG_DIR" ]; then
         rm -rf "$CONFIG_DIR"
         removed "Config: $CONFIG_DIR"
@@ -87,4 +87,4 @@ else
 fi
 
 echo ""
-info "Mint Dictation uninstalled."
+info "VoxType uninstalled."

@@ -1,6 +1,6 @@
-# Mint Dictation
+# VoxType
 
-Offline voice dictation for Linux Mint. Toggle with a hotkey — text is typed live into whatever app has focus (VSCode, browser, terminal, etc.). A small floating overlay with a mic icon and waveform animation appears while recording.
+Offline voice dictation for Linux. Toggle with a hotkey — text is typed live into whatever app has focus (VSCode, browser, terminal, etc.). A small floating overlay with a mic icon and waveform animation appears while recording.
 
 Built on [nerd-dictation](https://github.com/ideasman42/nerd-dictation) + [VOSK](https://alphacephei.com/vosk/) for fully offline, privacy-respecting speech recognition.
 
@@ -28,8 +28,8 @@ Built on [nerd-dictation](https://github.com/ideasman42/nerd-dictation) + [VOSK]
 ## Installation
 
 ```bash
-git clone https://github.com/wardethan2000-eng/mint-dictation.git ~/mint-dictation
-cd ~/mint-dictation
+git clone https://github.com/wardethan2000-eng/mint-dictation.git ~/voxtype
+cd ~/voxtype
 chmod +x install.sh
 ./install.sh
 ```
@@ -40,30 +40,21 @@ The installer will:
 2. Create a Python virtual environment with VOSK, sounddevice, numpy, PyGObject
 3. Clone [nerd-dictation](https://github.com/ideasman42/nerd-dictation)
 4. Download the VOSK English model (~128 MB)
-5. Install the `mint-dictation` launcher to `~/.local/bin/`
-6. Create a default config at `~/.config/mint-dictation/config.ini`
-7. Add an autostart entry for login
+5. Install the `voxtype` launcher to `~/.local/bin/`
+6. Create a default config at `~/.config/voxtype/config.ini`
+7. Add an autostart entry and app menu icon for login
 
 ### Set Up a Hotkey
 
-After installation, assign a keyboard shortcut to toggle dictation:
-
-1. Open **System Settings → Keyboard → Shortcuts → Custom Shortcuts**
-2. Click **Add custom shortcut**
-3. Set **Name** to `Mint Dictation Toggle`
-4. Set **Command** to:
-   ```
-   /home/YOUR_USERNAME/.local/bin/mint-dictation --toggle
-   ```
-5. Click **Add** and press your desired key combination (e.g. `Ctrl+Shift+D`)
+Open VoxType from the app menu (or run `voxtype --app`). Go to the **Hotkey** tab, click **Set…** to capture a key combination, then click **Apply to Cinnamon** to register it automatically.
 
 ## Usage
 
 ### Launch the Daemon
 
 ```bash
-mint-dictation          # Start (tray icon appears)
-mint-dictation -v       # Start with verbose logging
+voxtype          # Start (tray icon appears)
+voxtype -v       # Start with verbose logging
 ```
 
 The daemon runs in the background with a system tray icon. It must be running before toggling dictation.
@@ -72,11 +63,11 @@ The daemon runs in the background with a system tray icon. It must be running be
 
 | Command | Description |
 |---------|-------------|
-| `mint-dictation --toggle` | Toggle dictation on/off (bind to hotkey) |
-| `mint-dictation --start` | Start dictation |
-| `mint-dictation --stop` | Stop dictation |
-| `mint-dictation --status` | Print current status (`ready`, `active`, `not running`) |
-| `mint-dictation --quit` | Quit the daemon |
+| `voxtype --toggle` | Toggle dictation on/off (bind to hotkey) |
+| `voxtype --start` | Start dictation |
+| `voxtype --stop` | Stop dictation |
+| `voxtype --status` | Print current status (`ready`, `active`, `not running`) |
+| `voxtype --quit` | Quit the daemon |
 
 ### Overlay
 
@@ -111,11 +102,11 @@ Filler words (um, uh, hmm) are automatically removed.
 
 ### Main Config
 
-Edit `~/.config/mint-dictation/config.ini`:
+Edit `~/.config/voxtype/config.ini`:
 
 ```ini
 [dictation]
-nerd_dictation_path = ~/.local/share/mint-dictation/nerd-dictation/nerd-dictation
+nerd_dictation_path = ~/.local/share/voxtype/nerd-dictation/nerd-dictation
 vosk_model_dir = ~/.config/nerd-dictation/model
 timeout = 0
 continuous = true
@@ -126,7 +117,7 @@ input_method = PW-CAT
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `nerd_dictation_path` | Path to nerd-dictation script | `~/.local/share/mint-dictation/nerd-dictation/nerd-dictation` |
+| `nerd_dictation_path` | Path to nerd-dictation script | `~/.local/share/voxtype/nerd-dictation/nerd-dictation` |
 | `vosk_model_dir` | Path to VOSK language model | `~/.config/nerd-dictation/model` |
 | `timeout` | Auto-stop after N seconds of silence (0 = disabled) | `0` |
 | `continuous` | Keep listening between sentences | `true` |
@@ -159,7 +150,7 @@ To switch models, download and extract to `~/.config/nerd-dictation/model/` (rep
 
 ```
 ┌────────────────────────────────────────────────┐
-│            mint-dictation (GTK3 app)           │
+│            VoxType (GTK3 app)              │
 │                                                │
 │  ┌──────────┐  ┌─────────┐  ┌──────────────┐  │
 │  │Tray Icon │  │ Overlay │  │Audio Monitor │  │
@@ -205,8 +196,8 @@ To switch models, download and extract to `~/.config/nerd-dictation/model/` (rep
 - Check `xdotool`: `which xdotool`
 - Test nerd-dictation directly:
   ```bash
-  ~/.local/share/mint-dictation/venv/bin/python \
-    ~/.local/share/mint-dictation/nerd-dictation/nerd-dictation begin \
+  ~/.local/share/voxtype/venv/bin/python \
+    ~/.local/share/voxtype/nerd-dictation/nerd-dictation begin \
     --vosk-model-dir ~/.config/nerd-dictation/model \
     --input PW-CAT --output STDOUT --continuous --full-sentence
   ```
@@ -219,7 +210,7 @@ To switch models, download and extract to `~/.config/nerd-dictation/model/` (rep
 
 ### Overlay doesn't appear
 
-- Run with verbose logging: `mint-dictation -v`
+- Run with verbose logging: `voxtype -v`
 - Verify GTK3: `dpkg -l | grep gir1.2-gtk-3.0`
 
 ### Tray icon missing
@@ -241,7 +232,7 @@ cd mint-dictation
 python3 -m venv --system-site-packages .venv
 source .venv/bin/activate
 pip install -e .
-python -m mint_dictation.app -v
+python -m voxtype.app -v
 ```
 
 ## License

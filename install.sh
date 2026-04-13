@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Mint Dictation Installer ────────────────────────────────────────
+# ── VoxType Installer ───────────────────────────────────────────────────
 # Installs nerd-dictation, VOSK model, system dependencies, and sets
-# up mint-dictation for use on Linux Mint (Cinnamon / X11).
+# up VoxType for use on Linux (Cinnamon / X11).
 # ────────────────────────────────────────────────────────────────────
 
-INSTALL_DIR="$HOME/.local/share/mint-dictation"
+INSTALL_DIR="$HOME/.local/share/voxtype"
 NERD_DICT_DIR="$INSTALL_DIR/nerd-dictation"
 MODEL_DIR="$HOME/.config/nerd-dictation/model"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -87,19 +87,19 @@ else
     info "Model installed to $MODEL_DIR"
 fi
 
-# ── 5. Install mint-dictation package ────────────────────────────────
-info "Installing mint-dictation..."
+# ── 5. Install VoxType package ──────────────────────────────────────
+info "Installing VoxType..."
 pip install --quiet -e "$SCRIPT_DIR"
 
 # ── 6. Create launcher script ───────────────────────────────────────
-LAUNCHER="$HOME/.local/bin/mint-dictation"
+LAUNCHER="$HOME/.local/bin/voxtype"
 mkdir -p "$HOME/.local/bin"
 
 cat > "$LAUNCHER" << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
-VENV_DIR="$HOME/.local/share/mint-dictation/venv"
+VENV_DIR="$HOME/.local/share/voxtype/venv"
 source "$VENV_DIR/bin/activate"
-exec python -m mint_dictation.app "$@"
+exec python -m voxtype.app "$@"
 LAUNCHER_EOF
 chmod +x "$LAUNCHER"
 info "Launcher installed to $LAUNCHER"
@@ -107,13 +107,13 @@ info "Launcher installed to $LAUNCHER"
 # ── 7. Desktop autostart entry ──────────────────────────────────────
 AUTOSTART_DIR="$HOME/.config/autostart"
 mkdir -p "$AUTOSTART_DIR"
-cat > "$AUTOSTART_DIR/mint-dictation.desktop" << EOF
+cat > "$AUTOSTART_DIR/voxtype.desktop" << EOF
 [Desktop Entry]
 Type=Application
-Name=Mint Dictation
+Name=VoxType
 Comment=Voice dictation with system tray and overlay
 Exec=$LAUNCHER
-Icon=mint-dictation
+Icon=voxtype
 Terminal=false
 StartupNotify=false
 X-GNOME-Autostart-enabled=true
@@ -123,13 +123,13 @@ info "Autostart entry created"
 # ── 7b. Application menu entry ──────────────────────────────────────
 APPS_DIR="$HOME/.local/share/applications"
 mkdir -p "$APPS_DIR"
-cat > "$APPS_DIR/mint-dictation.desktop" << EOF
+cat > "$APPS_DIR/voxtype.desktop" << EOF
 [Desktop Entry]
 Type=Application
-Name=Mint Dictation
-Comment=Voice dictation tool for Linux Mint
+Name=VoxType
+Comment=Voice-to-text dictation tool
 Exec=$LAUNCHER --app
-Icon=mint-dictation
+Icon=voxtype
 Categories=Utility;Accessibility;
 Keywords=voice;dictation;speech;microphone;
 Terminal=false
@@ -141,12 +141,12 @@ info "Application menu entry installed"
 # ── 7c. Install icon into hicolor theme ─────────────────────────────
 ICON_THEME_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
 mkdir -p "$ICON_THEME_DIR"
-cp "$SCRIPT_DIR/assets/icons/mic-ready.svg" "$ICON_THEME_DIR/mint-dictation.svg"
+cp "$SCRIPT_DIR/assets/icons/mic-ready.svg" "$ICON_THEME_DIR/voxtype.svg"
 gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
 info "Application icon installed to icon theme"
 
 # ── 8. Create default config ────────────────────────────────────────
-CONFIG_DIR="$HOME/.config/mint-dictation"
+CONFIG_DIR="$HOME/.config/voxtype"
 CONFIG_FILE="$CONFIG_DIR/config.ini"
 if [ ! -f "$CONFIG_FILE" ]; then
     mkdir -p "$CONFIG_DIR"
@@ -180,15 +180,15 @@ fi
 # ── Done ─────────────────────────────────────────────────────────────
 echo ""
 info "============================================"
-info " Mint Dictation installed successfully!"
+info " VoxType installed successfully!"
 info "============================================"
 echo ""
 echo "  Next steps:"
 echo ""
 echo "  1. Start the daemon:"
-echo "       mint-dictation"
+echo "       voxtype"
 echo ""
-echo "  2. Open Mint Dictation from your app menu (or run: mint-dictation --app)"
+echo "  2. Open VoxType from your app menu (or run: voxtype --app)"
 echo "     Go to the Hotkey tab, click \"Set...\" to capture a key combo,"
 echo "     then click \"Apply to Cinnamon\" to register it automatically."
 echo ""

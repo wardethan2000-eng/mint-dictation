@@ -10,7 +10,7 @@ from gi.repository import GLib, Gdk, Gtk
 
 from .config import Config
 
-_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "mint-dictation" / "transcript.log"
+_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "voxtype" / "transcript.log"
 
 _VOICE_COMMANDS = [
     ("stop recording",    "Stop recording and close overlay"),
@@ -73,7 +73,7 @@ class SettingsWindow:
     # ── Build ────────────────────────────────────────────────────────
 
     def _build(self):
-        self._window = Gtk.Window(title="Mint Dictation")
+        self._window = Gtk.Window(title="VoxType")
         self._window.set_default_size(560, 640)
         self._window.set_resizable(False)
         self._window.set_icon_name("microphone")
@@ -155,7 +155,7 @@ class SettingsWindow:
 
         intro = Gtk.Label()
         intro.set_markup(
-            "<b>Mint Dictation</b> listens to your microphone and types what you say "
+            "<b>VoxType</b> listens to your microphone and types what you say "
             "into any focused application — a browser, text editor, chat window, or anything else."
         )
         intro.set_line_wrap(True)
@@ -168,7 +168,7 @@ class SettingsWindow:
             ("1", "Set up a hotkey",
              "Open <i>System Settings → Keyboard → Shortcuts → Custom Shortcuts</i>\n"
              "and add a new shortcut with this command:\n"
-             "<tt>~/.local/bin/mint-dictation --toggle</tt>"),
+             "<tt>~/.local/bin/voxtype --toggle</tt>"),
             ("2", "Press your hotkey",
              "The floating overlay appears at the top of your screen. Dictation starts immediately."),
             ("3", "Speak normally",
@@ -593,9 +593,9 @@ class SettingsWindow:
         if not binding:
             self._show_message("No hotkey set", "Press \"Set…\" first to capture a key combination.")
             return
-        launcher = Path.home() / ".local" / "bin" / "mint-dictation"
+        launcher = Path.home() / ".local" / "bin" / "voxtype"
         command = f"{launcher} --toggle"
-        short_name = "Mint Dictation Toggle"
+        short_name = "VoxType Toggle"
         try:
             self._write_cinnamon_shortcut(binding, command, short_name)
             self._show_message(
@@ -629,11 +629,11 @@ class SettingsWindow:
             except Exception:
                 existing = []
 
-        # Find slot already pointing at mint-dictation
+        # Find slot already pointing at voxtype
         target_id = None
         for cid in existing:
             cmd_raw = dconf_read(f"{_BASE}/{cid}/command")
-            if "mint-dictation" in cmd_raw:
+            if "voxtype" in cmd_raw:
                 target_id = cid
                 break
 

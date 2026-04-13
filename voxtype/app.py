@@ -23,8 +23,8 @@ from .tray import TrayIcon
 
 log = logging.getLogger(__name__)
 
-SOCKET_PATH = Path.home() / ".cache" / "mint-dictation" / "ipc.sock"
-PID_PATH = Path.home() / ".cache" / "mint-dictation" / "daemon.pid"
+SOCKET_PATH = Path.home() / ".cache" / "voxtype" / "ipc.sock"
+PID_PATH = Path.home() / ".cache" / "voxtype" / "daemon.pid"
 
 
 class MintDictationApp:
@@ -82,7 +82,7 @@ class MintDictationApp:
         try:
             subprocess.Popen(
                 ["notify-send", "-i", "dialog-error", "-t", "5000",
-                 "Mint Dictation", message],
+                 "VoxType", message],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
             )
@@ -245,7 +245,7 @@ class MintDictationApp:
         self._start_ipc_server()
         self._tray.set_state("ready")
         self._start_ptt_listener()
-        log.info("Mint Dictation running (PID %d)", os.getpid())
+        log.info("VoxType running (PID %d)", os.getpid())
 
         # Handle SIGTERM/SIGINT gracefully
         for sig in (signal.SIGTERM, signal.SIGINT):
@@ -271,7 +271,7 @@ def send_ipc_command(command: str) -> str:
 
 
 def is_daemon_running() -> bool:
-    """Check if a mint-dictation daemon is already running."""
+    """Check if a voxtype daemon is already running."""
     if not PID_PATH.exists():
         return False
     try:
@@ -287,14 +287,14 @@ def is_daemon_running() -> bool:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Mint Dictation — voice dictation for Linux Mint"
+        description="VoxType — voice dictation for Linux"
     )
     parser.add_argument("--toggle", action="store_true", help="Toggle dictation on/off")
     parser.add_argument("--start", action="store_true", help="Start dictation")
     parser.add_argument("--stop", action="store_true", help="Stop dictation")
     parser.add_argument("--status", action="store_true", help="Print dictation status")
     parser.add_argument("--settings", action="store_true", help="Open the settings window")
-    parser.add_argument("--app", action="store_true", help="Open the Mint Dictation app window")
+    parser.add_argument("--app", action="store_true", help="Open the VoxType app window")
     parser.add_argument("--quit", action="store_true", help="Quit the running daemon")
     parser.add_argument("--press", action="store_true", help="Start dictation (push-to-talk key down)")
     parser.add_argument("--release", action="store_true", help="Stop dictation (push-to-talk key up)")
@@ -321,7 +321,7 @@ def main():
                 import subprocess as _sp
                 import time as _time
                 _sp.Popen(
-                    [sys.executable, "-m", "mint_dictation.app"],
+                    [sys.executable, "-m", "voxtype.app"],
                     stdout=_sp.DEVNULL,
                     stderr=_sp.DEVNULL,
                     start_new_session=True,
@@ -337,7 +337,7 @@ def main():
                     sys.exit(1)
                 _time.sleep(0.05)  # brief grace period
             else:
-                print("Mint Dictation is not running.", file=sys.stderr)
+                print("VoxType is not running.", file=sys.stderr)
                 sys.exit(1)
 
         if args.toggle:
@@ -366,7 +366,7 @@ def main():
 
     # Launch the daemon
     if is_daemon_running():
-        print("Mint Dictation is already running.")
+        print("VoxType is already running.")
         sys.exit(0)
 
     app = MintDictationApp()
