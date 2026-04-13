@@ -127,8 +127,8 @@ cat > "$APPS_DIR/mint-dictation.desktop" << EOF
 [Desktop Entry]
 Type=Application
 Name=Mint Dictation
-Comment=Voice dictation with system tray and overlay
-Exec=$LAUNCHER
+Comment=Voice dictation tool for Linux Mint
+Exec=$LAUNCHER --app
 Icon=$SCRIPT_DIR/assets/icons/mic-ready.svg
 Categories=Utility;Accessibility;
 Keywords=voice;dictation;speech;microphone;

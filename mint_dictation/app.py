@@ -33,7 +33,11 @@ class MintDictationApp:
         self._dictation = DictationManager(self._config)
         self._audio_monitor = AudioMonitor(on_level=self._on_audio_level)
         self._overlay = DictationOverlay(on_stop_clicked=self.toggle_dictation)
-        self._settings = SettingsWindow(self._config)
+        self._settings = SettingsWindow(
+            self._config,
+            on_toggle=self.toggle_dictation,
+            on_status=lambda: "active" if self._dictation.is_running else "ready",
+        )
         self._tray = TrayIcon(
             self._config,
             on_toggle=self.toggle_dictation,
@@ -271,6 +275,7 @@ def main():
     parser.add_argument("--stop", action="store_true", help="Stop dictation")
     parser.add_argument("--status", action="store_true", help="Print dictation status")
     parser.add_argument("--settings", action="store_true", help="Open the settings window")
+    parser.add_argument("--app", action="store_true", help="Open the Mint Dictation app window")
     parser.add_argument("--quit", action="store_true", help="Quit the running daemon")
     parser.add_argument("--press", action="store_true", help="Start dictation (push-to-talk key down)")
     parser.add_argument("--release", action="store_true", help="Stop dictation (push-to-talk key up)")
@@ -285,14 +290,14 @@ def main():
     )
 
     # If sending a command to an existing daemon
-    if args.toggle or args.start or args.stop or args.status or args.quit or args.settings or args.press or args.release:
+    if args.toggle or args.start or args.stop or args.status or args.quit or args.settings or args.app or args.press or args.release:
         if not is_daemon_running():
             if args.status:
                 print("not running")
                 return
             if args.quit:
                 return  # nothing to quit
-            if args.toggle or args.start or args.settings or args.press:
+            if args.toggle or args.start or args.settings or args.app or args.press:
                 # Auto-start the daemon, then send the command
                 import subprocess as _sp
                 import time as _time
@@ -328,7 +333,7 @@ def main():
             return
         elif args.quit:
             resp = send_ipc_command("quit")
-        elif args.settings:
+        elif args.settings or args.app:
             resp = send_ipc_command("settings")
         elif args.press:
             resp = send_ipc_command("start")

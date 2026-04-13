@@ -1,5 +1,6 @@
 import logging
 import subprocess
+from pathlib import Path
 
 import gi
 
@@ -8,6 +9,27 @@ from gi.repository import GLib, Gtk
 
 from .config import Config
 
+_TRANSCRIPT_LOG = Path.home() / ".local" / "share" / "mint-dictation" / "transcript.log"
+
+_VOICE_COMMANDS = [
+    ("stop recording",    "Stop recording and close overlay"),
+    ("stop dictation",    "Same as above"),
+    ("period",            "Inserts  ."),
+    ("comma",             "Inserts  ,"),
+    ("question mark",     "Inserts  ?"),
+    ("exclamation mark",  "Inserts  !"),
+    ("colon",             "Inserts  :"),
+    ("semicolon",         "Inserts  ;"),
+    ("dash",              "Inserts  —"),
+    ("new line",          "Inserts a line break"),
+    ("new paragraph",     "Inserts two line breaks"),
+    ("tab key",           "Inserts a tab character"),
+    ("open quote",        'Inserts  "'),
+    ("close quote",       'Inserts  "'),
+    ("open paren",        "Inserts  ("),
+    ("close paren",       "Inserts  )"),
+]
+
 log = logging.getLogger(__name__)
 
 _RATES = ["16000", "22050", "44100", "48000"]
@@ -15,12 +37,20 @@ _METHODS = ["PW-CAT", "PAREC", "SOX"]
 
 
 class SettingsWindow:
-    """GTK settings dialog for Mint Dictation."""
+    """Main application window — Getting Started, Settings, and Transcript."""
 
-    def __init__(self, config: Config, on_settings_changed=None):
+    def __init__(self, config: Config, on_settings_changed=None,
+                 on_toggle=None, on_status=None):
         self._config = config
         self._on_settings_changed = on_settings_changed
+        self._on_toggle = on_toggle       # callable()
+        self._on_status = on_status       # callable() -> "active"/"ready"/"error"
         self._window = None
+        self._status_label = None
+        self._toggle_btn = None
+        self._transcript_view = None
+        self._info_bar = None
+        self._status_timer_id = None
 
     def show(self):
         if self._window and self._window.get_visible():
@@ -28,45 +58,279 @@ class SettingsWindow:
             return
         self._build()
         self._window.show_all()
+        self._info_bar.hide()
+        self._start_status_updates()
+        self._refresh_status()
 
     def hide(self):
+        self._stop_status_updates()
         if self._window:
             self._window.hide()
 
     # ── Build ────────────────────────────────────────────────────────
 
     def _build(self):
-        self._window = Gtk.Dialog(
-            title="Mint Dictation — Settings",
-            modal=False,
-            destroy_with_parent=False,
-        )
-        self._window.set_default_size(460, 460)
+        self._window = Gtk.Window(title="Mint Dictation")
+        self._window.set_default_size(560, 640)
         self._window.set_resizable(False)
-
-        btn_cancel = self._window.add_button("Cancel", Gtk.ResponseType.CANCEL)
-        btn_save = self._window.add_button("Save", Gtk.ResponseType.OK)
-        btn_save.get_style_context().add_class("suggested-action")
-        self._window.set_default_response(Gtk.ResponseType.OK)
-        self._window.connect("response", self._on_response)
+        self._window.set_icon_name("microphone")
         self._window.connect("delete-event", lambda w, e: w.hide() or True)
+        self._window.connect("hide", lambda w: self._stop_status_updates())
+
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self._window.add(outer)
+
+        outer.pack_start(self._build_status_header(), False, False, 0)
+        outer.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         notebook = Gtk.Notebook()
-        notebook.set_border_width(8)
-        self._window.get_content_area().pack_start(notebook, True, True, 0)
+        notebook.set_border_width(4)
+        outer.pack_start(notebook, True, True, 0)
 
         # Save confirmation info bar
         self._info_bar = Gtk.InfoBar()
         self._info_bar.set_message_type(Gtk.MessageType.INFO)
         self._info_bar.set_no_show_all(True)
         self._info_bar.get_content_area().add(
-            Gtk.Label(label="Changes take effect on the next recording session.")
+            Gtk.Label(label="Settings saved. Changes take effect on the next recording session.")
         )
-        self._window.get_content_area().pack_start(self._info_bar, False, False, 0)
+        outer.pack_start(self._info_bar, False, False, 0)
 
-        notebook.append_page(self._build_audio_tab(),       Gtk.Label(label="  Audio  "))
-        notebook.append_page(self._build_recognition_tab(), Gtk.Label(label="  Recognition  "))
-        notebook.append_page(self._build_hotkey_tab(),      Gtk.Label(label="  Hotkey  "))
+        notebook.append_page(self._build_getting_started_tab(), Gtk.Label(label="  Getting Started  "))
+        notebook.append_page(self._build_audio_tab(),           Gtk.Label(label="  Audio  "))
+        notebook.append_page(self._build_recognition_tab(),     Gtk.Label(label="  Recognition  "))
+        notebook.append_page(self._build_hotkey_tab(),          Gtk.Label(label="  Hotkey  "))
+        notebook.append_page(self._build_transcript_tab(),      Gtk.Label(label="  Transcript  "))
+
+        outer.pack_start(self._build_button_bar(), False, False, 0)
+
+    def _build_status_header(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        box.set_border_width(14)
+
+        self._status_label = Gtk.Label(label="○  Ready")
+        self._status_label.set_xalign(0.0)
+        self._status_label.get_style_context().add_class("dim-label")
+        box.pack_start(self._status_label, True, True, 0)
+
+        self._toggle_btn = Gtk.Button(label="Start Dictation")
+        self._toggle_btn.get_style_context().add_class("suggested-action")
+        self._toggle_btn.connect("clicked", self._on_toggle_clicked)
+        self._toggle_btn.set_sensitive(self._on_toggle is not None)
+        box.pack_end(self._toggle_btn, False, False, 0)
+
+        return box
+
+    def _build_button_bar(self):
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        outer.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
+
+        bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        bar.set_border_width(10)
+        outer.pack_start(bar, False, False, 0)
+
+        btn_cancel = Gtk.Button(label="Cancel")
+        btn_cancel.connect("clicked", lambda _: self.hide())
+        bar.pack_start(btn_cancel, False, False, 0)
+
+        btn_save = Gtk.Button(label="Save Settings")
+        btn_save.get_style_context().add_class("suggested-action")
+        btn_save.connect("clicked", lambda _: self._save())
+        bar.pack_end(btn_save, False, False, 0)
+
+        return outer
+
+    # ── Getting Started tab ──────────────────────────────────────────
+
+    def _build_getting_started_tab(self):
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
+        box.set_border_width(20)
+        scroll.add(box)
+
+        intro = Gtk.Label()
+        intro.set_markup(
+            "<b>Mint Dictation</b> listens to your microphone and types what you say "
+            "into any focused application — a browser, text editor, chat window, or anything else."
+        )
+        intro.set_line_wrap(True)
+        intro.set_xalign(0.0)
+        box.pack_start(intro, False, False, 0)
+
+        box.pack_start(self._section_label("Quick Start"), False, False, 0)
+
+        steps = [
+            ("1", "Set up a hotkey",
+             "Open <i>System Settings → Keyboard → Shortcuts → Custom Shortcuts</i>\n"
+             "and add a new shortcut with this command:\n"
+             "<tt>~/.local/bin/mint-dictation --toggle</tt>"),
+            ("2", "Press your hotkey",
+             "The floating overlay appears at the top of your screen. Dictation starts immediately."),
+            ("3", "Speak normally",
+             "Text is typed into the focused window. Use voice commands below to insert punctuation."),
+            ("4", "Press your hotkey again",
+             "Or click the overlay to stop. The overlay disappears and dictation ends."),
+        ]
+        for num, title, desc in steps:
+            box.pack_start(self._step_row(num, title, desc), False, False, 0)
+
+        hk_btn = Gtk.Button(label="Open Keyboard Settings…")
+        hk_btn.set_halign(Gtk.Align.START)
+        hk_btn.connect("clicked", self._on_open_keyboard_settings)
+        box.pack_start(hk_btn, False, False, 0)
+
+        box.pack_start(self._section_label("Voice Commands"), False, False, 0)
+
+        vc_note = Gtk.Label(label="Say any of these words while recording to trigger the action:")
+        vc_note.set_xalign(0.0)
+        vc_note.set_line_wrap(True)
+        box.pack_start(vc_note, False, False, 0)
+
+        grid = Gtk.Grid()
+        grid.set_row_spacing(6)
+        grid.set_column_spacing(20)
+        for i, (cmd, desc) in enumerate(_VOICE_COMMANDS):
+            cmd_lbl = Gtk.Label()
+            cmd_lbl.set_markup(f'<tt><b>"{cmd}"</b></tt>')
+            cmd_lbl.set_xalign(0.0)
+            desc_lbl = Gtk.Label(label=desc)
+            desc_lbl.set_xalign(0.0)
+            desc_lbl.get_style_context().add_class("dim-label")
+            grid.attach(cmd_lbl,  0, i, 1, 1)
+            grid.attach(desc_lbl, 1, i, 1, 1)
+        box.pack_start(grid, False, False, 0)
+
+        box.pack_start(self._section_label("Push-to-Talk Mode"), False, False, 0)
+        ptt_note = Gtk.Label()
+        ptt_note.set_markup(
+            "Instead of toggling, hold a key to record and release to stop.\n"
+            "Set a <b>Push-to-talk key</b> in the <i>Recognition</i> tab (e.g. <tt>f9</tt>),\n"
+            "then add <tt>--press</tt> on key-down and <tt>--release</tt> on key-up shortcuts."
+        )
+        ptt_note.set_line_wrap(True)
+        ptt_note.set_xalign(0.0)
+        box.pack_start(ptt_note, False, False, 0)
+
+        return scroll
+
+    def _section_label(self, text: str) -> Gtk.Label:
+        lbl = Gtk.Label()
+        lbl.set_markup(f"<b>{text}</b>")
+        lbl.set_xalign(0.0)
+        return lbl
+
+    def _step_row(self, num: str, title: str, desc: str) -> Gtk.Box:
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
+        row.set_valign(Gtk.Align.START)
+
+        badge = Gtk.Label()
+        badge.set_markup(f"<b>{num}</b>")
+        badge.set_size_request(24, 24)
+        badge.get_style_context().add_class("dim-label")
+        row.pack_start(badge, False, False, 0)
+
+        text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        title_lbl = Gtk.Label()
+        title_lbl.set_markup(f"<b>{title}</b>")
+        title_lbl.set_xalign(0.0)
+        desc_lbl = Gtk.Label()
+        desc_lbl.set_markup(desc)
+        desc_lbl.set_xalign(0.0)
+        desc_lbl.set_line_wrap(True)
+        desc_lbl.get_style_context().add_class("dim-label")
+        text_box.pack_start(title_lbl, False, False, 0)
+        text_box.pack_start(desc_lbl, False, False, 0)
+        row.pack_start(text_box, True, True, 0)
+
+        return row
+
+    # ── Transcript tab ───────────────────────────────────────────────
+
+    def _build_transcript_tab(self):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        box.set_border_width(10)
+
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        self._transcript_view = Gtk.TextView()
+        self._transcript_view.set_editable(False)
+        self._transcript_view.set_cursor_visible(False)
+        self._transcript_view.set_wrap_mode(Gtk.WrapMode.WORD_CHAR)
+        self._transcript_view.set_monospace(True)
+        self._transcript_view.set_left_margin(8)
+        self._transcript_view.set_right_margin(8)
+        self._transcript_view.set_top_margin(6)
+        scroll.add(self._transcript_view)
+        box.pack_start(scroll, True, True, 0)
+
+        btn_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        refresh_btn = Gtk.Button(label="Refresh")
+        refresh_btn.connect("clicked", lambda _: self._load_transcript())
+        btn_row.pack_start(refresh_btn, False, False, 0)
+
+        open_btn = Gtk.Button(label="Open in Text Editor")
+        open_btn.connect("clicked", self._on_open_transcript)
+        btn_row.pack_start(open_btn, False, False, 0)
+
+        path_lbl = Gtk.Label()
+        path_lbl.set_markup(f'<small><span foreground="#888">{_TRANSCRIPT_LOG}</span></small>')
+        path_lbl.set_xalign(0.0)
+        btn_row.pack_end(path_lbl, False, False, 0)
+
+        box.pack_start(btn_row, False, False, 0)
+
+        GLib.idle_add(self._load_transcript)
+        return box
+
+    def _load_transcript(self, *_):
+        if self._transcript_view is None:
+            return
+        buf = self._transcript_view.get_buffer()
+        if not _TRANSCRIPT_LOG.exists():
+            buf.set_text("No transcript yet. Start recording and speak to generate one.")
+            return
+        try:
+            lines = _TRANSCRIPT_LOG.read_text(encoding="utf-8").splitlines()
+            buf.set_text("\n".join(lines[-200:]))
+            end = buf.get_end_iter()
+            self._transcript_view.scroll_to_iter(end, 0.0, False, 0.0, 1.0)
+        except Exception as e:
+            buf.set_text(f"Could not load transcript: {e}")
+
+    # ── Status updates ────────────────────────────────────────────────
+
+    def _start_status_updates(self):
+        self._status_timer_id = GLib.timeout_add(1000, self._refresh_status)
+
+    def _stop_status_updates(self):
+        if self._status_timer_id is not None:
+            GLib.source_remove(self._status_timer_id)
+            self._status_timer_id = None
+
+    def _refresh_status(self, *_) -> bool:
+        if self._status_label is None:
+            return False
+        state = self._on_status() if self._on_status else "ready"
+        icons  = {"active": "●", "error": "⚠", "ready": "○"}
+        labels = {"active": "Recording…", "error": "Error — click to retry", "ready": "Ready"}
+        color  = "#e05050" if state == "active" else "#888888"
+        self._status_label.set_markup(
+            f'<span foreground="{color}">{icons.get(state, "○")}  {labels.get(state, "Ready")}</span>'
+        )
+        if self._toggle_btn:
+            self._toggle_btn.set_label(
+                "Stop Dictation" if state == "active" else "Start Dictation"
+            )
+            ctx = self._toggle_btn.get_style_context()
+            if state == "active":
+                ctx.remove_class("suggested-action")
+                ctx.add_class("destructive-action")
+            else:
+                ctx.remove_class("destructive-action")
+                ctx.add_class("suggested-action")
+        return True
 
     def _grid(self):
         g = Gtk.Grid()
@@ -75,7 +339,7 @@ class SettingsWindow:
         g.set_border_width(18)
         return g
 
-    def _label(self, text):
+    def _flabel(self, text):
         lbl = Gtk.Label(label=text, xalign=1.0)
         lbl.get_style_context().add_class("dim-label")
         return lbl
@@ -86,7 +350,7 @@ class SettingsWindow:
         g = self._grid()
 
         # Input method
-        g.attach(self._label("Input method:"), 0, 0, 1, 1)
+        g.attach(self._flabel("Input method:"), 0, 0, 1, 1)
         self._input_combo = Gtk.ComboBoxText()
         for m in _METHODS:
             self._input_combo.append_text(m)
@@ -99,7 +363,7 @@ class SettingsWindow:
         g.attach(hint, 1, 1, 1, 1)
 
         # Sample rate
-        g.attach(self._label("Sample rate:"), 0, 2, 1, 1)
+        g.attach(self._flabel("Sample rate:"), 0, 2, 1, 1)
         self._rate_combo = Gtk.ComboBoxText()
         for r in _RATES:
             self._rate_combo.append_text(r + " Hz")
@@ -108,7 +372,7 @@ class SettingsWindow:
         g.attach(self._rate_combo, 1, 2, 1, 1)
 
         # VOSK model directory
-        g.attach(self._label("VOSK model:"), 0, 3, 1, 1)
+        g.attach(self._flabel("VOSK model:"), 0, 3, 1, 1)
         browse_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         self._model_entry = Gtk.Entry()
         self._model_entry.set_width_chars(30)
@@ -126,7 +390,7 @@ class SettingsWindow:
         g.attach(model_hint, 1, 4, 1, 1)
 
         # Microphone device
-        g.attach(self._label("Microphone:"), 0, 5, 1, 1)
+        g.attach(self._flabel("Microphone:"), 0, 5, 1, 1)
         self._mic_sources = self._get_audio_sources()
         self._mic_combo = Gtk.ComboBoxText()
         self._mic_combo.append_text("System default")
@@ -173,7 +437,7 @@ class SettingsWindow:
         g.attach(self._numbers_check, 0, 2, 2, 1)
 
         # Silence timeout
-        g.attach(self._label("Silence timeout:"), 0, 3, 1, 1)
+        g.attach(self._flabel("Silence timeout:"), 0, 3, 1, 1)
         timeout_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self._timeout_spin = Gtk.SpinButton.new_with_range(0, 60, 1)
         try:
@@ -185,7 +449,7 @@ class SettingsWindow:
         g.attach(timeout_box, 1, 3, 1, 1)
 
         # Push-to-talk key
-        g.attach(self._label("Push-to-talk key:"), 0, 4, 1, 1)
+        g.attach(self._flabel("Push-to-talk key:"), 0, 4, 1, 1)
         self._ptt_entry = Gtk.Entry()
         self._ptt_entry.set_width_chars(12)
         self._ptt_entry.set_placeholder_text("e.g. f9")
@@ -272,6 +536,11 @@ class SettingsWindow:
             pass
         return sources
 
+    def _on_toggle_clicked(self, _button):
+        if self._on_toggle:
+            self._on_toggle()
+        GLib.timeout_add(200, self._refresh_status)
+
     def _on_browse_model(self, _button):
         dialog = Gtk.FileChooserDialog(
             title="Select VOSK Model Directory",
@@ -294,10 +563,15 @@ class SettingsWindow:
                 continue
         log.warning("Could not open keyboard settings")
 
-    def _on_response(self, _dialog, response_id):
-        if response_id == Gtk.ResponseType.OK:
-            self._save()
-        self._window.hide()
+    def _on_open_transcript(self, _button):
+        try:
+            subprocess.Popen(
+                ["xdg-open", str(_TRANSCRIPT_LOG)],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+        except FileNotFoundError:
+            log.warning("xdg-open not available")
 
     def _save(self):
         self._config.set("input_method", _METHODS[self._input_combo.get_active()])
