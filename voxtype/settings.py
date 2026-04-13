@@ -52,7 +52,7 @@ class SettingsWindow:
         self._transcript_view = None
         self._info_bar = None
         self._status_timer_id = None
-        self._current_hotkey = self._config.get("toggle_hotkey", "")
+        self._current_hotkey = self._config.get("toggle_hotkey")
         self._hotkey_display_lbl = None
 
     def show(self):
