@@ -238,6 +238,14 @@ WORD_REPLACE = {
     "hmm": "",
 }
 
+# Words VOSK hallucinates from mic noise / silence (especially at end of recording).
+# If the entire utterance is just one of these, discard it.
+NOISE_WORDS = frozenset({
+    "the", "a", "an", "and", "but", "or", "is", "it", "in", "to",
+    "of", "that", "this", "for", "on", "at", "be", "as", "so", "no",
+    "do", "if", "he", "we", "my", "me", "oh", "ah", "huh", "ya",
+})
+
 # ---------------------------------------------------------------------------
 # Regex replacements — for patterns like "i'm", "i'll" at start of words
 # ---------------------------------------------------------------------------
@@ -286,6 +294,11 @@ def nerd_dictation_process(text):
             if not text:
                 return ""
             break
+
+    # Discard single-word noise artefacts (VOSK often hallucinates "the" from
+    # mic noise, especially right before/after recording stops).
+    if text_lower in NOISE_WORDS:
+        return ""
 
     # Multi-word regex replacements
     for match, replacement in TEXT_REPLACE_REGEX:
