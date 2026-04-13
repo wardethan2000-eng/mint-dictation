@@ -59,7 +59,7 @@ class MintDictationApp:
             log.error("Failed to start dictation")
 
     def _stop_dictation(self):
-        self._dictation.stop()
+        self._dictation.cancel()
         self._audio_monitor.stop()
         self._overlay.hide()
         self._tray.set_state("ready")

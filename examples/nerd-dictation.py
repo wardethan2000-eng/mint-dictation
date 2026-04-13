@@ -3,6 +3,27 @@
 # Handles: punctuation, capitalization, common names, contractions, tech terms
 
 import re
+import socket
+from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# Voice stop command — say these phrases to stop recording
+# ---------------------------------------------------------------------------
+
+STOP_PHRASES = ["stop recording", "stop dictation"]
+
+_IPC_SOCKET = Path.home() / ".cache" / "mint-dictation" / "ipc.sock"
+
+
+def _send_stop_command():
+    try:
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        sock.connect(str(_IPC_SOCKET))
+        sock.sendall(b"stop")
+        sock.close()
+    except Exception:
+        pass
 
 # ---------------------------------------------------------------------------
 # Punctuation — say the word to insert the punctuation
@@ -235,6 +256,18 @@ TEXT_REPLACE_REGEX = tuple(
 # ---------------------------------------------------------------------------
 
 def nerd_dictation_process(text):
+    # Check for voice stop command
+    text_lower = text.strip().lower()
+    for phrase in STOP_PHRASES:
+        if phrase in text_lower:
+            _send_stop_command()
+            # Remove the stop phrase, return any text before it
+            idx = text_lower.index(phrase)
+            text = text[:idx].strip()
+            if not text:
+                return ""
+            break
+
     # Multi-word regex replacements
     for match, replacement in TEXT_REPLACE_REGEX:
         text = match.sub(replacement, text)
