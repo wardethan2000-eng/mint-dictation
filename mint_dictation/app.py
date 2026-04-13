@@ -158,7 +158,7 @@ class MintDictationApp:
         self._ipc_server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self._ipc_server.bind(str(SOCKET_PATH))
         os.chmod(str(SOCKET_PATH), 0o600)
-        self._ipc_server.listen(1)
+        self._ipc_server.listen(8)
         self._ipc_server.settimeout(1.0)
 
         thread = threading.Thread(target=self._ipc_loop, daemon=True)
