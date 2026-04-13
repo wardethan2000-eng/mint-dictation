@@ -166,9 +166,8 @@ class SettingsWindow:
 
         steps = [
             ("1", "Set up a hotkey",
-             "Open <i>System Settings → Keyboard → Shortcuts → Custom Shortcuts</i>\n"
-             "and add a new shortcut with this command:\n"
-             "<tt>~/.local/bin/voxtype --toggle</tt>"),
+             "Go to the <b>Hotkey</b> tab above, click <b>Set…</b> to capture a key combination, "
+             "then click <b>Apply to Cinnamon</b> to register it."),
             ("2", "Press your hotkey",
              "The floating overlay appears at the top of your screen. Dictation starts immediately."),
             ("3", "Speak normally",
@@ -178,11 +177,6 @@ class SettingsWindow:
         ]
         for num, title, desc in steps:
             box.pack_start(self._step_row(num, title, desc), False, False, 0)
-
-        hk_btn = Gtk.Button(label="Open Keyboard Settings…")
-        hk_btn.set_halign(Gtk.Align.START)
-        hk_btn.connect("clicked", self._on_open_keyboard_settings)
-        box.pack_start(hk_btn, False, False, 0)
 
         box.pack_start(self._section_label("Voice Commands"), False, False, 0)
 
@@ -504,7 +498,7 @@ class SettingsWindow:
 
         ptt_g.attach(self._flabel("Push-to-talk key:"), 0, 0, 1, 1)
         self._ptt_entry = Gtk.Entry()
-        self._ptt_entry.set_text(self._config.get("ptt_key", ""))
+        self._ptt_entry.set_text(self._config.get("ptt_key"))
         self._ptt_entry.set_tooltip_text("e.g.  ctrl  or  f9  (pynput key name)")
         ptt_g.attach(self._ptt_entry, 1, 0, 1, 1)
 
