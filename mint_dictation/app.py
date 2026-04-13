@@ -243,7 +243,7 @@ def send_ipc_command(command: str) -> str:
         response = sock.recv(256).decode("utf-8")
         sock.close()
         return response
-    except (ConnectionRefusedError, FileNotFoundError, socket.timeout):
+    except OSError:
         return ""
 
 
