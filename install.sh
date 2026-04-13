@@ -61,7 +61,7 @@ python3 -m venv --system-site-packages "$VENV_DIR"
 source "$VENV_DIR/bin/activate"
 
 pip install --quiet --upgrade pip
-pip install --quiet vosk sounddevice numpy pycairo PyGObject pynput
+pip install --quiet vosk sounddevice numpy pycairo PyGObject pynput python-xlib
 
 # ── 3. Clone nerd-dictation ─────────────────────────────────────────
 if [ -d "$NERD_DICT_DIR" ]; then
@@ -113,7 +113,7 @@ Type=Application
 Name=Mint Dictation
 Comment=Voice dictation with system tray and overlay
 Exec=$LAUNCHER
-Icon=$SCRIPT_DIR/assets/icons/mic-ready.svg
+Icon=mint-dictation
 Terminal=false
 StartupNotify=false
 X-GNOME-Autostart-enabled=true
@@ -129,7 +129,7 @@ Type=Application
 Name=Mint Dictation
 Comment=Voice dictation tool for Linux Mint
 Exec=$LAUNCHER --app
-Icon=$SCRIPT_DIR/assets/icons/mic-ready.svg
+Icon=mint-dictation
 Categories=Utility;Accessibility;
 Keywords=voice;dictation;speech;microphone;
 Terminal=false
@@ -137,6 +137,13 @@ StartupNotify=false
 EOF
 update-desktop-database "$APPS_DIR" 2>/dev/null || true
 info "Application menu entry installed"
+
+# ── 7c. Install icon into hicolor theme ─────────────────────────────
+ICON_THEME_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
+mkdir -p "$ICON_THEME_DIR"
+cp "$SCRIPT_DIR/assets/icons/mic-ready.svg" "$ICON_THEME_DIR/mint-dictation.svg"
+gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+info "Application icon installed to icon theme"
 
 # ── 8. Create default config ────────────────────────────────────────
 CONFIG_DIR="$HOME/.config/mint-dictation"
@@ -181,9 +188,9 @@ echo ""
 echo "  1. Start the daemon:"
 echo "       mint-dictation"
 echo ""
-echo "  2. Set up a hotkey in Cinnamon:"
-echo "       System Settings → Keyboard → Shortcuts → Custom Shortcuts"
-echo "       Command: $LAUNCHER --toggle"
+echo "  2. Open Mint Dictation from your app menu (or run: mint-dictation --app)"
+echo "     Go to the Hotkey tab, click \"Set...\" to capture a key combo,"
+echo "     then click \"Apply to Cinnamon\" to register it automatically."
 echo ""
 echo "  3. Press your hotkey and start talking!"
 echo ""

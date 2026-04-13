@@ -2,10 +2,11 @@ import logging
 import subprocess
 from pathlib import Path
 
+import ast
 import gi
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import GLib, Gtk
+from gi.repository import GLib, Gdk, Gtk
 
 from .config import Config
 
@@ -51,6 +52,8 @@ class SettingsWindow:
         self._transcript_view = None
         self._info_bar = None
         self._status_timer_id = None
+        self._current_hotkey = self._config.get("toggle_hotkey", "")
+        self._hotkey_display_lbl = None
 
     def show(self):
         if self._window and self._window.get_visible():
@@ -448,68 +451,213 @@ class SettingsWindow:
         timeout_box.pack_start(Gtk.Label(label="seconds  (0 = no auto-stop)"), False, False, 0)
         g.attach(timeout_box, 1, 3, 1, 1)
 
-        # Push-to-talk key
-        g.attach(self._flabel("Push-to-talk key:"), 0, 4, 1, 1)
-        self._ptt_entry = Gtk.Entry()
-        self._ptt_entry.set_width_chars(12)
-        self._ptt_entry.set_placeholder_text("e.g. f9")
-        self._ptt_entry.set_text(self._config.get("ptt_key"))
-        g.attach(self._ptt_entry, 1, 4, 1, 1)
-        ptt_hint = Gtk.Label(xalign=0)
-        ptt_hint.set_markup(
-            '<small><span foreground="#888">'
-            "Hold to record, release to stop. Leave blank for toggle mode."
-            "</span></small>"
-        )
-        g.attach(ptt_hint, 0, 5, 2, 1)
-
         return g
 
     # ── Hotkey tab ───────────────────────────────────────────────────
 
     def _build_hotkey_tab(self):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=14)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=18)
         box.set_border_width(18)
 
-        info = Gtk.Label(xalign=0)
-        info.set_line_wrap(True)
-        info.set_markup(
-            "Hotkeys are managed by your desktop environment.\n\n"
-            "To toggle dictation on/off with a key combination, add a "
-            "<b>Custom Shortcut</b> in:\n"
-            "<i>System Settings → Keyboard → Shortcuts → Custom Shortcuts</i>"
-        )
-        box.pack_start(info, False, False, 0)
+        # ── Toggle hotkey capture row ────────────────────────────────
+        g = self._grid()
+        g.set_border_width(0)
 
-        # Command display
-        frame = Gtk.Frame()
-        frame.set_shadow_type(Gtk.ShadowType.IN)
-        cmd_lbl = Gtk.Label()
-        cmd_lbl.set_markup("<tt><b>~/.local/bin/mint-dictation --toggle</b></tt>")
-        cmd_lbl.set_selectable(True)
-        cmd_lbl.set_margin_top(10)
-        cmd_lbl.set_margin_bottom(10)
-        cmd_lbl.set_margin_start(14)
-        cmd_lbl.set_margin_end(14)
-        frame.add(cmd_lbl)
-        box.pack_start(frame, False, False, 0)
+        g.attach(self._flabel("Toggle hotkey:"), 0, 0, 1, 1)
 
-        note = Gtk.Label(xalign=0)
-        note.set_markup(
+        hk_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        current = self._current_hotkey or "Not set"
+        self._hotkey_display_lbl = Gtk.Label(label=current)
+        self._hotkey_display_lbl.get_style_context().add_class("dim-label")
+        self._hotkey_display_lbl.set_xalign(0.0)
+        self._hotkey_display_lbl.set_width_chars(18)
+        hk_row.pack_start(self._hotkey_display_lbl, False, False, 0)
+
+        set_btn = Gtk.Button(label="Set…")
+        set_btn.connect("clicked", self._on_set_hotkey_clicked)
+        hk_row.pack_start(set_btn, False, False, 0)
+
+        g.attach(hk_row, 1, 0, 1, 1)
+
+        apply_btn = Gtk.Button(label="Apply to Cinnamon")
+        apply_btn.set_tooltip_text("Registers the hotkey as a Cinnamon custom keyboard shortcut")
+        apply_btn.connect("clicked", self._on_apply_cinnamon_clicked)
+        g.attach(apply_btn, 1, 1, 1, 1)
+
+        de_note = Gtk.Label(xalign=0)
+        de_note.set_markup(
             '<small><span foreground="#888">'
-            "The daemon starts automatically when the hotkey is pressed — "
-            "no need to launch it separately."
+            "Works on Linux Mint / Cinnamon DE. For other desktops, add the shortcut manually."
             "</span></small>"
         )
-        note.set_line_wrap(True)
-        box.pack_start(note, False, False, 0)
+        de_note.set_line_wrap(True)
+        g.attach(de_note, 0, 2, 2, 1)
 
-        open_btn = Gtk.Button(label="Open Keyboard Settings")
-        open_btn.set_halign(Gtk.Align.START)
-        open_btn.connect("clicked", self._on_open_keyboard_settings)
-        box.pack_start(open_btn, False, False, 0)
+        box.pack_start(g, False, False, 0)
+
+        # ── Push-to-talk key row ──────────────────────────────────────
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        box.pack_start(sep, False, False, 0)
+
+        ptt_g = self._grid()
+        ptt_g.set_border_width(0)
+
+        ptt_g.attach(self._flabel("Push-to-talk key:"), 0, 0, 1, 1)
+        self._ptt_entry = Gtk.Entry()
+        self._ptt_entry.set_text(self._config.get("ptt_key", ""))
+        self._ptt_entry.set_tooltip_text("e.g.  ctrl  or  f9  (pynput key name)")
+        ptt_g.attach(self._ptt_entry, 1, 0, 1, 1)
+
+        ptt_hint = Gtk.Label(xalign=0)
+        ptt_hint.set_markup(
+            '<small><span foreground="#888">'
+            "Hold to record, release to stop. Leave blank to disable push-to-talk."
+            "</span></small>"
+        )
+        ptt_g.attach(ptt_hint, 0, 1, 2, 1)
+
+        box.pack_start(ptt_g, False, False, 0)
 
         return box
+
+    def _on_set_hotkey_clicked(self, _button):
+        """Open a key-capture dialog and update the displayed binding."""
+        binding = self._capture_hotkey_dialog()
+        if binding:
+            self._current_hotkey = binding
+            self._hotkey_display_lbl.set_text(binding)
+
+    def _capture_hotkey_dialog(self) -> str:
+        """Show a modal dialog, capture one key+modifier combo, return binding string."""
+        dialog = Gtk.Dialog(title="Set Toggle Hotkey", parent=self._window, modal=True)
+        dialog.set_default_size(340, 0)
+        dialog.add_button("Cancel", Gtk.ResponseType.CANCEL)
+
+        lbl = Gtk.Label()
+        lbl.set_markup("<b>Press your desired hotkey combination…</b>")
+        lbl.set_margin_top(20)
+        lbl.set_margin_bottom(20)
+        lbl.set_margin_start(16)
+        lbl.set_margin_end(16)
+        dialog.get_content_area().pack_start(lbl, True, True, 0)
+        dialog.show_all()
+
+        captured = []
+
+        # Mask that Gtk uses to check meaningful modifier keys
+        _MOD_MASK = (
+            Gdk.ModifierType.SUPER_MASK
+            | Gdk.ModifierType.CONTROL_MASK
+            | Gdk.ModifierType.MOD1_MASK
+            | Gdk.ModifierType.SHIFT_MASK
+        )
+
+        _LONE_MODS = {
+            Gdk.KEY_Shift_L, Gdk.KEY_Shift_R,
+            Gdk.KEY_Control_L, Gdk.KEY_Control_R,
+            Gdk.KEY_Alt_L, Gdk.KEY_Alt_R,
+            Gdk.KEY_Super_L, Gdk.KEY_Super_R,
+            Gdk.KEY_Meta_L, Gdk.KEY_Meta_R,
+            Gdk.KEY_Hyper_L, Gdk.KEY_Hyper_R,
+        }
+
+        def on_key_press(widget, event):
+            if event.keyval in _LONE_MODS:
+                return True
+            parts = []
+            mods = event.state & _MOD_MASK
+            if mods & Gdk.ModifierType.SUPER_MASK:
+                parts.append("Super")
+            if mods & Gdk.ModifierType.CONTROL_MASK:
+                parts.append("Control")
+            if mods & Gdk.ModifierType.MOD1_MASK:
+                parts.append("Alt")
+            if mods & Gdk.ModifierType.SHIFT_MASK:
+                parts.append("Shift")
+            keyname = Gdk.keyval_name(event.keyval)
+            binding = "".join(f"<{p}>" for p in parts) + keyname
+            captured.append(binding)
+            lbl.set_markup(f"<b>{binding}</b>")
+            dialog.response(Gtk.ResponseType.OK)
+            return True
+
+        dialog.connect("key-press-event", on_key_press)
+        result = dialog.run()
+        dialog.destroy()
+
+        return captured[0] if (result == Gtk.ResponseType.OK and captured) else ""
+
+    def _on_apply_cinnamon_clicked(self, _button):
+        """Write the current hotkey into Cinnamon custom keyboard shortcuts via dconf."""
+        binding = self._current_hotkey.strip()
+        if not binding:
+            self._show_message("No hotkey set", "Press \"Set…\" first to capture a key combination.")
+            return
+        launcher = Path.home() / ".local" / "bin" / "mint-dictation"
+        command = f"{launcher} --toggle"
+        short_name = "Mint Dictation Toggle"
+        try:
+            self._write_cinnamon_shortcut(binding, command, short_name)
+            self._show_message(
+                "Hotkey applied",
+                f"{binding} → {short_name}\n\nLog out and back in if it doesn't take effect immediately.",
+            )
+        except Exception as exc:
+            log.error("Failed to apply Cinnamon hotkey: %s", exc)
+            self._show_message("Failed to apply hotkey", str(exc))
+
+    @staticmethod
+    def _write_cinnamon_shortcut(binding: str, command: str, name: str) -> None:
+        """Create or update a Cinnamon custom keyboard shortcut via dconf."""
+        _BASE = "/org/cinnamon/desktop/keybindings/custom-keybindings"
+        _LIST_KEY = "/org/cinnamon/desktop/keybindings/custom-list"
+
+        def dconf_read(path: str) -> str:
+            r = subprocess.run(["dconf", "read", path], capture_output=True, text=True, timeout=5)
+            return r.stdout.strip()
+
+        def dconf_write(path: str, value: str) -> None:
+            subprocess.run(["dconf", "write", path, value], check=True, timeout=5)
+
+        # Parse current custom-list
+        raw = dconf_read(_LIST_KEY)
+        if not raw or raw in ("@as []", "[]"):
+            existing: list[str] = []
+        else:
+            try:
+                existing = ast.literal_eval(raw.replace("'", '"'))
+            except Exception:
+                existing = []
+
+        # Find slot already pointing at mint-dictation
+        target_id = None
+        for cid in existing:
+            cmd_raw = dconf_read(f"{_BASE}/{cid}/command")
+            if "mint-dictation" in cmd_raw:
+                target_id = cid
+                break
+
+        if target_id is None:
+            target_id = f"custom{len(existing)}"
+            existing.append(target_id)
+            list_val = "[" + ", ".join(f"'{x}'" for x in existing) + "]"
+            dconf_write(_LIST_KEY, list_val)
+
+        base = f"{_BASE}/{target_id}"
+        dconf_write(f"{base}/name",    f"'{name}'")
+        dconf_write(f"{base}/command", f"'{command}'")
+        dconf_write(f"{base}/binding", f"['{binding}']")
+
+    @staticmethod
+    def _show_message(title: str, body: str) -> None:
+        dlg = Gtk.MessageDialog(
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text=title,
+        )
+        dlg.format_secondary_text(body)
+        dlg.run()
+        dlg.destroy()
 
     # ── Callbacks ────────────────────────────────────────────────────
 
@@ -554,15 +702,6 @@ class SettingsWindow:
             self._model_entry.set_text(dialog.get_filename())
         dialog.destroy()
 
-    def _on_open_keyboard_settings(self, _button):
-        for cmd in (["cinnamon-settings", "keyboard"], ["gnome-control-center", "keyboard"]):
-            try:
-                subprocess.Popen(cmd)
-                return
-            except FileNotFoundError:
-                continue
-        log.warning("Could not open keyboard settings")
-
     def _on_open_transcript(self, _button):
         try:
             subprocess.Popen(
@@ -581,7 +720,9 @@ class SettingsWindow:
         self._config.set("full_sentence", str(self._full_sentence_check.get_active()).lower())
         self._config.set("numbers_as_digits", str(self._numbers_check.get_active()).lower())
         self._config.set("timeout", str(int(self._timeout_spin.get_value())))
-        self._config.set("ptt_key", self._ptt_entry.get_text().strip().lower())
+        if hasattr(self, "_ptt_entry"):
+            self._config.set("ptt_key", self._ptt_entry.get_text().strip().lower())
+        self._config.set("toggle_hotkey", self._current_hotkey)
         active = self._mic_combo.get_active()
         self._config.set(
             "input_device",

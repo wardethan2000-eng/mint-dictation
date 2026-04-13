@@ -37,6 +37,7 @@ class MintDictationApp:
             self._config,
             on_toggle=self.toggle_dictation,
             on_status=lambda: "active" if self._dictation.is_running else "ready",
+            on_settings_changed=self._on_settings_saved,
         )
         self._tray = TrayIcon(
             self._config,
@@ -111,7 +112,7 @@ class MintDictationApp:
         try:
             from pynput import keyboard as kb
         except ImportError:
-            log.warning("pynput not installed; push-to-talk unavailable. Run: pip install pynput")
+            log.warning("pynput not installed; push-to-talk unavailable. Run: pip install pynput python-xlib")
             return
         try:
             ptt_key = kb.Key[ptt_key_name]
@@ -122,17 +123,35 @@ class MintDictationApp:
                 log.warning("PTT: unrecognised key %r. Use names like 'f9', 'pause', 'scroll_lock'.", ptt_key_name)
                 return
 
+        def _keys_match(key, target):
+            """Compare pynput key against target, handling KeyCode vs Key."""
+            if key == target:
+                return True
+            if hasattr(key, 'vk') and hasattr(target, 'vk'):
+                return key.vk == target.vk
+            return False
+
         def on_press(key):
-            if key == ptt_key and not self._dictation.is_running:
+            if _keys_match(key, ptt_key) and not self._dictation.is_running:
                 GLib.idle_add(self._start_dictation)
 
         def on_release(key):
-            if key == ptt_key and self._dictation.is_running:
+            if _keys_match(key, ptt_key) and self._dictation.is_running:
                 GLib.idle_add(self._stop_dictation)
 
-        self._ptt_listener = kb.Listener(on_press=on_press, on_release=on_release, daemon=True)
+        self._ptt_listener = kb.Listener(
+            on_press=on_press, on_release=on_release, daemon=True
+        )
         self._ptt_listener.start()
         log.info("PTT listener started for key: %r", ptt_key_name)
+
+    def _restart_ptt_listener(self):
+        self._stop_ptt_listener()
+        self._start_ptt_listener()
+
+    def _on_settings_saved(self):
+        self._restart_ptt_listener()
+        self._tray._update_info_item("active" if self._dictation.is_running else "ready")
 
     def _stop_ptt_listener(self):
         if self._ptt_listener is not None:

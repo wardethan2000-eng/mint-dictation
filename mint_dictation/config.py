@@ -16,6 +16,7 @@ _DEFAULTS = {
     "sample_rate": "44100",
     "input_device": "",
     "ptt_key": "",
+    "toggle_hotkey": "",
 }
 
 _CONFIG_DIR = Path.home() / ".config" / "mint-dictation"
