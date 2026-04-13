@@ -8,11 +8,25 @@ import sys
 import threading
 from pathlib import Path
 
+APP_ID = "voxtype"
+APP_NAME = "VoxType"
+
+if sys.argv:
+    sys.argv[0] = APP_ID
+
 import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
-from gi.repository import Gdk, GLib, Gtk
+from gi.repository import GLib
+
+GLib.set_prgname(APP_ID)
+GLib.set_application_name(APP_NAME)
+
+from gi.repository import Gdk, Gtk
+
+if hasattr(Gdk, "set_program_class"):
+    Gdk.set_program_class(APP_ID)
 
 from .audio_monitor import AudioMonitor
 from .config import Config
@@ -25,6 +39,26 @@ log = logging.getLogger(__name__)
 
 SOCKET_PATH = Path.home() / ".cache" / "voxtype" / "ipc.sock"
 PID_PATH = Path.home() / ".cache" / "voxtype" / "daemon.pid"
+
+
+def configure_app_identity():
+    """Make GTK windows resolve to the VoxType icon and desktop entry."""
+    icon_candidates = [
+        Path(__file__).resolve().parent.parent / "assets" / "icons" / "voxtype.svg",
+        Path.home() / ".local" / "share" / "icons" / "hicolor" / "scalable" / "apps" / "voxtype.svg",
+        Path("/usr/share/icons/hicolor/scalable/apps/voxtype.svg"),
+        Path("/usr/share/voxtype/icons/voxtype.svg"),
+    ]
+    for icon_path in icon_candidates:
+        if not icon_path.exists():
+            continue
+        try:
+            Gtk.Window.set_default_icon_from_file(str(icon_path))
+            return
+        except GLib.Error:
+            log.debug("Failed to load default icon from %s", icon_path, exc_info=True)
+
+    Gtk.Window.set_default_icon_name(APP_ID)
 
 
 class MintDictationApp:
@@ -303,6 +337,8 @@ def main():
     )
     args = parser.parse_args()
 
+    configure_app_identity()
+
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -320,8 +356,13 @@ def main():
                 # Auto-start the daemon, then send the command
                 import subprocess as _sp
                 import time as _time
+                launcher = Path.home() / ".local" / "bin" / APP_ID
+                if launcher.exists():
+                    daemon_command = [str(launcher)]
+                else:
+                    daemon_command = [sys.executable, "-m", "voxtype.app"]
                 _sp.Popen(
-                    [sys.executable, "-m", "voxtype.app"],
+                    daemon_command,
                     stdout=_sp.DEVNULL,
                     stderr=_sp.DEVNULL,
                     start_new_session=True,

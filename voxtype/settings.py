@@ -76,7 +76,15 @@ class SettingsWindow:
         self._window = Gtk.Window(title="VoxType")
         self._window.set_default_size(560, 640)
         self._window.set_resizable(False)
-        self._window.set_icon_name("microphone")
+        self._window.set_wmclass("voxtype", "voxtype")
+        icon_file = self._config.icon_dir / "voxtype.svg"
+        if icon_file.exists():
+            try:
+                self._window.set_icon_from_file(str(icon_file))
+            except GLib.Error:
+                self._window.set_icon_name("voxtype")
+        else:
+            self._window.set_icon_name("voxtype")
         self._window.connect("delete-event", lambda w, e: w.hide() or True)
         self._window.connect("hide", lambda w: self._stop_status_updates())
 

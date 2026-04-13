@@ -1,0 +1,9 @@
+[Icon Theme]
+Name=hicolor
+Comment=VoxType tray icons
+Directories=22x22/status
+
+[22x22/status]
+Size=22
+Type=Fixed
+Context=Status

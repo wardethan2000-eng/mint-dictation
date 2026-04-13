@@ -99,7 +99,7 @@ cat > "$LAUNCHER" << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
 VENV_DIR="$HOME/.local/share/voxtype/venv"
 source "$VENV_DIR/bin/activate"
-exec python -m voxtype.app "$@"
+exec -a voxtype python -m voxtype.app "$@"
 LAUNCHER_EOF
 chmod +x "$LAUNCHER"
 info "Launcher installed to $LAUNCHER"
@@ -114,6 +114,7 @@ Name=VoxType
 Comment=Voice dictation with system tray and overlay
 Exec=$LAUNCHER
 Icon=voxtype
+StartupWMClass=voxtype
 Terminal=false
 StartupNotify=false
 X-GNOME-Autostart-enabled=true
@@ -130,6 +131,7 @@ Name=VoxType
 Comment=Voice-to-text dictation tool
 Exec=$LAUNCHER --app
 Icon=voxtype
+StartupWMClass=voxtype
 Categories=Utility;Accessibility;
 Keywords=voice;dictation;speech;microphone;
 Terminal=false
@@ -138,12 +140,14 @@ EOF
 update-desktop-database "$APPS_DIR" 2>/dev/null || true
 info "Application menu entry installed"
 
-# ── 7c. Install icon into hicolor theme ─────────────────────────────
-ICON_THEME_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
-mkdir -p "$ICON_THEME_DIR"
-cp "$SCRIPT_DIR/assets/icons/voxtype.svg" "$ICON_THEME_DIR/voxtype.svg"
-gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
-info "Application icon installed to icon theme"
+# ── 7c. Install icons into hicolor theme ────────────────────────────
+ICON_THEME_DIR="$HOME/.local/share/icons/hicolor"
+mkdir -p "$ICON_THEME_DIR/scalable/apps"
+mkdir -p "$ICON_THEME_DIR/22x22/status"
+cp "$SCRIPT_DIR/assets/icons/voxtype.svg" "$ICON_THEME_DIR/scalable/apps/voxtype.svg"
+cp "$SCRIPT_DIR/assets/icons/hicolor/22x22/status"/vt-*.png "$ICON_THEME_DIR/22x22/status/"
+gtk-update-icon-cache -f -t "$ICON_THEME_DIR" 2>/dev/null || true
+info "Application and tray icons installed to icon theme"
 
 # ── 8. Create default config ────────────────────────────────────────
 CONFIG_DIR="$HOME/.config/voxtype"

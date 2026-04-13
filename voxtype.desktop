@@ -4,6 +4,7 @@ Name=VoxType
 Comment=Voice-to-text dictation tool
 Exec=voxtype
 Icon=voxtype
+StartupWMClass=voxtype
 Terminal=false
 StartupNotify=false
 Categories=Utility;Accessibility;

@@ -49,6 +49,22 @@ if [ -f "$APP_ENTRY" ]; then
     removed "App menu entry: $APP_ENTRY"
 fi
 
+# ── Icons ─────────────────────────────────────────────────────────────
+APP_ICON="$HOME/.local/share/icons/hicolor/scalable/apps/voxtype.svg"
+if [ -f "$APP_ICON" ]; then
+    rm -f "$APP_ICON"
+    removed "App icon: $APP_ICON"
+fi
+
+STATUS_ICON_DIR="$HOME/.local/share/icons/hicolor/22x22/status"
+for icon in "$STATUS_ICON_DIR"/vt-ready.png "$STATUS_ICON_DIR"/vt-active.png "$STATUS_ICON_DIR"/vt-error.png; do
+    if [ -f "$icon" ]; then
+        rm -f "$icon"
+        removed "Tray icon: $icon"
+    fi
+done
+gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+
 # ── Python venv + nerd-dictation ──────────────────────────────────────
 INSTALL_DIR="$HOME/.local/share/voxtype"
 if [ -d "$INSTALL_DIR" ]; then
