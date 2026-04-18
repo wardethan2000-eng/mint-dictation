@@ -34,6 +34,7 @@ sudo apt-get install -y -qq \
     gir1.2-appindicator3-0.1 \
     xdotool \
     libportaudio2 \
+    python3-dev \
     python3-venv \
     git \
     wget \
@@ -94,6 +95,13 @@ pip install --quiet -e "$SCRIPT_DIR"
 # ── 6. Create launcher script ───────────────────────────────────────
 LAUNCHER="$HOME/.local/bin/voxtype"
 mkdir -p "$HOME/.local/bin"
+
+# Ensure ~/.local/bin is on PATH
+if [[ ":$PATH:" != *":$HOME/.local/bin:"* ]]; then
+    info "Adding ~/.local/bin to PATH in ~/.bashrc..."
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
+    export PATH="$HOME/.local/bin:$PATH"
+fi
 
 cat > "$LAUNCHER" << 'LAUNCHER_EOF'
 #!/usr/bin/env bash
